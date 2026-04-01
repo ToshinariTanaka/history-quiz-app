@@ -3,21 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>中学歴史一問一答</title>
+  <title>中学歴史4択クイズ</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="container">
-    <h1>中学歴史一問一答</h1>
-    <p class="subtitle">4択ではなく、まずは最小の一問一答モックアップです。</p>
+    <h1>中学歴史4択クイズ</h1>
+    <p class="subtitle">正しい選択肢を1つ選んでください。</p>
 
     <section class="quiz-card">
-      <p id="question">問題を読み込み中…</p>
+      <p id="question" aria-live="polite">問題を読み込み中…</p>
+      <div id="choices" class="choices" role="list"></div>
+      <p id="result" class="result hidden" aria-live="polite"></p>
+      <p id="progress" class="progress" aria-live="polite"></p>
       <div class="actions">
-        <button id="show-answer" type="button">答えを見る</button>
-        <button id="next" type="button">次の問題へ</button>
+        <button id="next" type="button" class="secondary" disabled>次の問題へ</button>
       </div>
-      <p id="answer" class="answer hidden" aria-live="polite"></p>
     </section>
   </main>
 
