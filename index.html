@@ -4,15 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#2f6fb7" />
-  <title>中学歷史4択クイズ</title>
+  <title>中学歴史4択クイズ</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="container">
-    <h1>中学歷史4択クイズ</h1>
-    <p class="subtitle">浭測い項内容11を1つ選んでください。¤</p>
+    <h1>中学歴史4択クイズ</h1>
+    <p class="subtitle">正しい選択肢を1つ選んでください。</p>
 
-    <section class="settings-card" aria-label="出定設定">
+    <section class="settings-card" aria-label="出題設定">
       <div class="settings-grid">
         <label class="setting-field" for="question-count">
           <span class="setting-label">出題数</span>
@@ -20,20 +20,20 @@
         </label>
 
         <label class="setting-field" for="range-mode">
-          <span class="setting-label">出題範围</span>
-          <select id="range-mode" class="setting-select" aria-label="出題範囱"></select>
+          <span class="setting-label">出題範囲</span>
+          <select id="range-mode" class="setting-select" aria-label="出題範囲"></select>
         </label>
 
         <label class="setting-field" for="practice-mode">
           <span class="setting-label">出題モード</span>
-          <select id="practice-mode" class="setting-select" aria-label="出定モード"></select>
+          <select id="practice-mode" class="setting-select" aria-label="出題モード"></select>
         </label>
 
         <label class="setting-field" for="random-mode">
-          <span class="setting-label">出題頺</span>
+          <span class="setting-label">出題順</span>
           <span class="toggle-row">
             <input id="random-mode" type="checkbox" checked />
-            <span>ランダムで出定する</span>
+            <span>ランダムで出題する</span>
           </span>
         </label>
 
@@ -51,16 +51,16 @@
     <section class="quiz-card">
       <p id="mode" class="mode hidden" aria-live="polite"></p>
       <p id="era" class="era hidden" aria-live="polite"></p>
-      <p id="question" aria-live="polite">問題を込みブ〃ターヺ中…"</p>
+      <p id="question" aria-live="polite">問題を読み込み中…</p>
       <div id="choices" class="choices" role="list"></div>
       <p id="result" class="result hidden" aria-live="polite"></p>
       <div id="summary" class="summary hidden" aria-live="polite"></div>
       <div id="progress" class="progress" aria-live="polite"></div>
       <div class="actions">
         <button id="next" type="button" class="secondary hidden" disabled>次の問題へ</button>
-        <button id="restart" type="button" class="secondary hidden">もうい並度挆刘</button>
-        <button id="review-missed" type="button" class="secondary hidden">❬だけ复習</button>
-        <button id="change-settings" type="button" class="secondary hidden">設定を変かる</button>
+        <button id="restart" type="button" class="secondary hidden">もう一度挑戦</button>
+        <button id="review-missed" type="button" class="secondary hidden">❌だけ復習</button>
+        <button id="change-settings" type="button" class="secondary hidden">設定を変える</button>
       </div>
     </section>
   </main>
