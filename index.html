@@ -12,12 +12,14 @@
     <p class="subtitle">正しい選択肢を1つ選んでください。</p>
 
     <section class="quiz-card">
+      <p id="era" class="era hidden" aria-live="polite"></p>
       <p id="question" aria-live="polite">問題を読み込み中…</p>
       <div id="choices" class="choices" role="list"></div>
       <p id="result" class="result hidden" aria-live="polite"></p>
       <p id="progress" class="progress" aria-live="polite"></p>
       <div class="actions">
-        <button id="next" type="button" class="secondary" disabled>次の問題へ</button>
+        <button id="next" type="button" class="secondary hidden" disabled>次の問題へ</button>
+        <button id="restart" type="button" class="secondary hidden">もう一度挑戦</button>
       </div>
     </section>
   </main>

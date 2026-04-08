@@ -7,6 +7,8 @@
   --border: #d8dee9;
   --correct: #15803d;
   --incorrect: #b91c1c;
+  --success-bg: #ecfdf3;
+  --error-bg: #fef2f2;
 }
 
 * { box-sizing: border-box; }
@@ -42,6 +44,17 @@ h1 {
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
 }
 
+.era {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: var(--accent-dark);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 #question {
   font-size: 2rem;
   line-height: 1.6;
@@ -64,17 +77,20 @@ button {
   background: var(--accent);
   color: white;
   cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
 }
 
 .choice-btn:hover,
 button:hover {
   background: var(--accent-dark);
+  transform: translateY(-1px);
 }
 
 .choice-btn:disabled,
 button:disabled {
   opacity: 0.65;
   cursor: default;
+  transform: none;
 }
 
 .choice-btn.correct {
@@ -86,9 +102,22 @@ button:disabled {
 }
 
 .result {
-  font-size: 1.3rem;
+  font-size: 1.15rem;
   font-weight: 700;
+  line-height: 1.8;
   margin: 8px 0 10px;
+  padding: 14px 16px;
+  border-radius: 14px;
+}
+
+.result.success {
+  background: var(--success-bg);
+  color: #166534;
+}
+
+.result.error {
+  background: var(--error-bg);
+  color: #991b1b;
 }
 
 .progress {
@@ -99,6 +128,9 @@ button:disabled {
 
 .actions {
   margin-top: 18px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .secondary {

@@ -1,90 +1,165 @@
-const quiz = [
-  {
-    question: "大化の改新が始まった年は？",
-    choices: ["645年", "710年", "794年", "1192年"],
-    answerIndex: 0
-  },
-  {
-    question: "平安京に都が移された年は？",
-    choices: ["645年", "710年", "794年", "1185年"],
-    answerIndex: 2
-  },
-  {
-    question: "鎌倉幕府を開いた人物は？",
-    choices: ["源頼朝", "平清盛", "足利尊氏", "徳川家康"],
-    answerIndex: 0
-  },
-  {
-    question: "応仁の乱が始まった年は？",
-    choices: ["1333年", "1467年", "1600年", "1868年"],
-    answerIndex: 1
-  },
-  {
-    question: "明治維新が始まった年は？",
-    choices: ["1549年", "1603年", "1776年", "1868年"],
-    answerIndex: 3
-  }
-];
+const DATA_PATH = "quiz-data_rekishi3.json";
 
 const questionEl = document.getElementById("question");
 const choicesEl = document.getElementById("choices");
 const resultEl = document.getElementById("result");
 const progressEl = document.getElementById("progress");
 const nextBtn = document.getElementById("next");
+const restartBtn = document.getElementById("restart");
+const eraEl = document.getElementById("era");
 
+let quiz = [];
 let currentIndex = 0;
+let score = 0;
 let answered = false;
+
+function shuffle(array) {
+  const copy = [...array];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function setMessage(message, options = {}) {
+  const { hidden = false, success = false, error = false } = options;
+  resultEl.textContent = message;
+  resultEl.classList.toggle("hidden", hidden);
+  resultEl.classList.toggle("success", success);
+  resultEl.classList.toggle("error", error);
+}
+
+function resetChoiceArea() {
+  choicesEl.innerHTML = "";
+}
+
+function createRuntimeQuestion(item) {
+  return {
+    ...item,
+    choices: shuffle([item.answer, ...(item.wrongChoices || [])])
+  };
+}
 
 function renderQuestion() {
   const item = quiz[currentIndex];
+  if (!item) return;
+
   answered = false;
   questionEl.textContent = item.question;
-  resultEl.textContent = "";
-  resultEl.classList.add("hidden");
+  eraEl.textContent = item.era || "";
+  eraEl.classList.toggle("hidden", !item.era);
+
+  setMessage("", { hidden: true });
   nextBtn.disabled = true;
+  nextBtn.classList.add("hidden");
+  restartBtn.classList.add("hidden");
   progressEl.textContent = `${currentIndex + 1} / ${quiz.length} 問`;
 
-  choicesEl.innerHTML = "";
-  item.choices.forEach((choice, index) => {
+  resetChoiceArea();
+
+  item.choices.forEach((choice) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "choice-btn";
     button.textContent = choice;
     button.setAttribute("role", "listitem");
-    button.addEventListener("click", () => selectChoice(index));
+    button.addEventListener("click", () => selectChoice(choice));
     choicesEl.appendChild(button);
   });
 }
 
-function selectChoice(selectedIndex) {
+function selectChoice(selectedChoice) {
   if (answered) return;
   answered = true;
 
   const item = quiz[currentIndex];
   const buttons = Array.from(document.querySelectorAll(".choice-btn"));
 
-  buttons.forEach((button, index) => {
+  buttons.forEach((button) => {
     button.disabled = true;
-    if (index === item.answerIndex) {
+    if (button.textContent === item.answer) {
       button.classList.add("correct");
-    } else if (index === selectedIndex) {
+    } else if (button.textContent === selectedChoice) {
       button.classList.add("incorrect");
     }
   });
 
-  if (selectedIndex === item.answerIndex) {
-    resultEl.textContent = "正解です。";
+  if (selectedChoice === item.answer) {
+    score += 1;
+    setMessage(`正解です。${item.explanation}`, { success: true });
   } else {
-    resultEl.textContent = `不正解です。正解は「${item.choices[item.answerIndex]}」です。`;
+    setMessage(`不正解です。正解は「${item.answer}」です。${item.explanation}`, { error: true });
   }
 
-  resultEl.classList.remove("hidden");
   nextBtn.disabled = false;
+  nextBtn.classList.remove("hidden");
+}
+
+function showFinalScore() {
+  eraEl.classList.add("hidden");
+  questionEl.textContent = "クイズ終了";
+  resetChoiceArea();
+  setMessage(`${quiz.length}問中 ${score}問正解でした。`, { success: true });
+  progressEl.textContent = "";
+  nextBtn.classList.add("hidden");
+  restartBtn.classList.remove("hidden");
+}
+
+async function loadQuiz() {
+  try {
+    questionEl.textContent = "問題を読み込み中…";
+    eraEl.classList.add("hidden");
+    resetChoiceArea();
+    setMessage("", { hidden: true });
+    progressEl.textContent = "";
+    nextBtn.classList.add("hidden");
+    restartBtn.classList.add("hidden");
+
+    const response = await fetch(DATA_PATH, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("問題データを読み込めませんでした。");
+    }
+
+    const rawQuiz = await response.json();
+    if (!Array.isArray(rawQuiz) || rawQuiz.length === 0) {
+      throw new Error("出題できる問題が見つかりませんでした。");
+    }
+
+    quiz = rawQuiz.map(createRuntimeQuestion);
+    currentIndex = 0;
+    score = 0;
+    renderQuestion();
+  } catch (error) {
+    eraEl.classList.add("hidden");
+    questionEl.textContent = "読み込みエラー";
+    resetChoiceArea();
+    progressEl.textContent = "";
+    nextBtn.classList.add("hidden");
+    restartBtn.classList.add("hidden");
+    setMessage(error.message || "問題データを読み込めませんでした。", { error: true });
+  }
 }
 
 nextBtn.addEventListener("click", () => {
-  currentIndex = (currentIndex + 1) % quiz.length;
+  currentIndex += 1;
+  if (currentIndex < quiz.length) {
+    renderQuestion();
+  } else {
+    showFinalScore();
+  }
+});
+
+restartBtn.addEventListener("click", () => {
+  if (quiz.length === 0) {
+    loadQuiz();
+    return;
+  }
+
+  currentIndex = 0;
+  score = 0;
+  quiz = shuffle(quiz).map(createRuntimeQuestion);
   renderQuestion();
 });
 
-renderQuestion();
+loadQuiz();
