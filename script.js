@@ -10,6 +10,8 @@ const restartBtn = document.getElementById("restart");
 const eraEl = document.getElementById("era");
 const questionCountEl = document.getElementById("question-count");
 const randomModeEl = document.getElementById("random-mode");
+const startEraFieldEl = document.getElementById("start-era-field");
+const startEraEl = document.getElementById("start-era");
 const applySettingsBtn = document.getElementById("apply-settings");
 
 let allQuestions = [];
@@ -221,10 +223,40 @@ function populateQuestionCountOptions(totalQuestions) {
     : totalQuestions;
 
   questionCountEl.value = String(defaultCount);
-  randomModeEl.checked = true;
   questionCountEl.disabled = false;
-  randomModeEl.disabled = false;
-  applySettingsBtn.disabled = false;
+}
+
+function populateStartEraOptions(questions) {
+  const eras = [];
+  const seen = new Set();
+
+  questions.forEach((item) => {
+    if (!item.era || seen.has(item.era)) {
+      return;
+    }
+
+    seen.add(item.era);
+    eras.push(item.era);
+  });
+
+  startEraEl.innerHTML = "";
+
+  eras.forEach((era) => {
+    const option = document.createElement("option");
+    option.value = era;
+    option.textContent = `${era}から`;
+    startEraEl.appendChild(option);
+  });
+
+  if (eras.length > 0) {
+    startEraEl.value = eras[0];
+  }
+}
+
+function updateStartEraVisibility() {
+  const shouldShow = !randomModeEl.checked && startEraEl.options.length > 0;
+  startEraFieldEl.classList.toggle("hidden", !shouldShow);
+  startEraEl.disabled = !shouldShow;
 }
 
 function getSelectedQuestionCount() {
@@ -236,11 +268,29 @@ function getSelectedQuestionCount() {
   return Math.min(selectedCount, allQuestions.length);
 }
 
+function getStartIndexForSelectedEra() {
+  if (randomModeEl.checked) {
+    return 0;
+  }
+
+  const selectedEra = startEraEl.value;
+  const startIndex = allQuestions.findIndex((item) => item.era === selectedEra);
+  return startIndex >= 0 ? startIndex : 0;
+}
+
 function buildQuizFromSettings() {
   const shouldShuffleQuestions = randomModeEl.checked;
   const questionCount = getSelectedQuestionCount();
 
-  const source = shouldShuffleQuestions ? shuffle(allQuestions) : [...allQuestions];
+  let source;
+
+  if (shouldShuffleQuestions) {
+    source = shuffle(allQuestions);
+  } else {
+    const startIndex = getStartIndexForSelectedEra();
+    source = allQuestions.slice(startIndex);
+  }
+
   return source.slice(0, questionCount).map(createRuntimeQuestion);
 }
 
@@ -336,6 +386,7 @@ async function loadQuiz() {
     restartBtn.classList.add("hidden");
     questionCountEl.disabled = true;
     randomModeEl.disabled = true;
+    startEraEl.disabled = true;
     applySettingsBtn.disabled = true;
 
     const response = await fetch(DATA_PATH, { cache: "no-store" });
@@ -350,6 +401,11 @@ async function loadQuiz() {
 
     allQuestions = rawQuiz.map(sanitizeQuestionItem);
     populateQuestionCountOptions(allQuestions.length);
+    populateStartEraOptions(allQuestions);
+    randomModeEl.checked = true;
+    randomModeEl.disabled = false;
+    updateStartEraVisibility();
+    applySettingsBtn.disabled = false;
     startQuiz();
   } catch (error) {
     eraEl.classList.add("hidden");
@@ -361,6 +417,9 @@ async function loadQuiz() {
     questionCountEl.innerHTML = "";
     questionCountEl.disabled = true;
     randomModeEl.disabled = true;
+    startEraEl.innerHTML = "";
+    startEraEl.disabled = true;
+    updateStartEraVisibility();
     applySettingsBtn.disabled = true;
     setMessage(error.message || "問題データを読み込めませんでした。", { error: true });
   }
@@ -377,6 +436,10 @@ nextBtn.addEventListener("click", () => {
 
 restartBtn.addEventListener("click", () => {
   startQuiz();
+});
+
+randomModeEl.addEventListener("change", () => {
+  updateStartEraVisibility();
 });
 
 applySettingsBtn.addEventListener("click", () => {
