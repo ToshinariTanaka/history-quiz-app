@@ -14,6 +14,7 @@ const eraEl = document.getElementById("era")
 const modeEl = document.getElementById("mode")
 const questionCountEl = document.getElementById("question-count")
 const randomModeEl = document.getElementById("random-mode")
+const rangeModeEl = document.getElementById("range-mode")
 const startEraFieldEl = document.getElementById("start-era-field")
 const startEraEl = document.getElementById("start-era")
 const applySettingsBtn = document.getElementById("apply-settings")
@@ -34,6 +35,7 @@ let currentStreak = 0
 let bestStreak = 0
 let sessionMode = "normal"
 let audioContext = null
+let questionStats = new Map()
 
 function shuffle(array) {
   const copy = [...array]
@@ -112,6 +114,82 @@ function cloneQuestion(item) {
     ...item,
     wrongChoices: [...(item.wrongChoices || [])]
   }
+}
+
+function createEmptyQuestionStat(item) {
+  return {
+    questionKey: item.questionKey,
+    era: item.era || "",
+    question: item.question,
+    attempts: 0,
+    correctRound: null,
+    firstAttemptCorrect: null
+  }
+}
+
+function ensureQuestionStat(item) {
+  if (!questionStats.has(item.questionKey)) {
+    questionStats.set(item.questionKey, createEmptyQuestionStat(item))
+  }
+  return questionStats.get(item.questionKey)
+}
+
+function resetQuestionStats(questions) {
+  questionStats = new Map()
+  questions.forEach((item) => {
+    questionStats.set(item.questionKey, createEmptyQuestionStat(item))
+  })
+}
+
+function recordQuestionAttempt(item, isCorrect) {
+  const stat = ensureQuestionStat(item)
+  stat.attempts += 1
+
+  if (stat.attempts === 1) {
+    stat.firstAttemptCorrect = isCorrect
+  }
+
+  if (isCorrect && stat.correctRound === null) {
+    stat.correctRound = reviewRound === 0 ? 1 : reviewRound + 1
+  }
+}
+
+function getHistoryItemsMarkup() {
+  const stats = selectedQuestions
+    .map((item) => ensureQuestionStat(item))
+    .sort((a, b) => {
+      if (a.correctRound === b.correctRound) {
+        return a.question.localeCompare(b.question, "ja")
+      }
+      return (a.correctRound || 999) - (b.correctRound || 999)
+    })
+
+  const itemsMarkup = stats.map((stat) => {
+    const statusClass = stat.firstAttemptCorrect ? "history-status-good" : "history-status-review"
+    const statusText = stat.firstAttemptCorrect
+      ? "1回で正解"
+      : `${stat.correctRound || stat.attempts}回目で正解`
+
+    return `
+      <li class="history-item">
+        <div class="history-head">
+          <span class="history-era">${stat.era || "総合"}</span>
+          <span class="history-status ${statusClass}">${statusText}</span>
+        </div>
+        <p class="history-question">${stat.question}</p>
+        <p class="history-note">解答回数 ${stat.attempts}回</p>
+      </li>
+    `
+  }).join("")
+
+  return `
+    <section class="history-section">
+      <p class="history-heading">正誤履歴</p>
+      <ul class="history-list">
+        ${itemsMarkup}
+      </ul>
+    </section>
+  `
 }
 
 function getAudioContext() {
@@ -248,8 +326,41 @@ async function playIncorrectSound() {
   }
 }
 
+function populateRangeOptions(questions) {
+  const eras = [...new Set(questions.map((item) => item.era).filter(Boolean))]
+  rangeModeEl.innerHTML = ""
+
+  const allOption = document.createElement("option")
+  allOption.value = "all"
+  allOption.textContent = "すべて"
+  rangeModeEl.appendChild(allOption)
+
+  eras.forEach((era) => {
+    const option = document.createElement("option")
+    option.value = era
+    option.textContent = `${era}だけ`
+    rangeModeEl.appendChild(option)
+  })
+
+  rangeModeEl.value = "all"
+  rangeModeEl.disabled = false
+}
+
+function getQuestionsForSelectedRange() {
+  const selectedRange = rangeModeEl.value
+  if (!selectedRange || selectedRange === "all") {
+    return [...allQuestions]
+  }
+  return allQuestions.filter((item) => item.era === selectedRange)
+}
+
 function populateQuestionCountOptions(totalQuestions) {
   questionCountEl.innerHTML = ""
+
+  if (totalQuestions <= 0) {
+    questionCountEl.disabled = true
+    return
+  }
 
   const presets = [10, 20, 30, 50, 100].filter((count) => count < totalQuestions)
   const counts = [...presets, totalQuestions]
@@ -296,42 +407,53 @@ function populateStartEraOptions(questions) {
   }
 }
 
+function refreshSettingOptions() {
+  const rangeQuestions = getQuestionsForSelectedRange()
+  populateQuestionCountOptions(rangeQuestions.length)
+  populateStartEraOptions(rangeQuestions)
+  updateStartEraVisibility()
+}
+
 function updateStartEraVisibility() {
-  const shouldShow = !randomModeEl.checked && startEraEl.options.length > 0
+  const hasEraOptions = startEraEl.options.length > 0
+  const isAllRange = !rangeModeEl.value || rangeModeEl.value === "all"
+  const shouldShow = !randomModeEl.checked && isAllRange && hasEraOptions
   startEraFieldEl.classList.toggle("hidden", !shouldShow)
   startEraEl.disabled = !shouldShow
 }
 
 function getSelectedQuestionCount() {
+  const availableQuestions = getQuestionsForSelectedRange().length
   const selectedCount = Number.parseInt(questionCountEl.value, 10)
   if (!Number.isFinite(selectedCount) || selectedCount <= 0) {
-    return Math.min(DEFAULT_QUESTION_COUNT, allQuestions.length)
+    return Math.min(DEFAULT_QUESTION_COUNT, availableQuestions)
   }
 
-  return Math.min(selectedCount, allQuestions.length)
+  return Math.min(selectedCount, availableQuestions)
 }
 
-function getStartIndexForSelectedEra() {
-  if (randomModeEl.checked) {
+function getStartIndexForSelectedEra(sourceQuestions) {
+  if (randomModeEl.checked || sourceQuestions.length === 0) {
     return 0
   }
 
   const selectedEra = startEraEl.value
-  const startIndex = allQuestions.findIndex((item) => item.era === selectedEra)
+  const startIndex = sourceQuestions.findIndex((item) => item.era === selectedEra)
   return startIndex >= 0 ? startIndex : 0
 }
 
 function buildQuizFromSettings() {
   const shouldShuffleQuestions = randomModeEl.checked
   const questionCount = getSelectedQuestionCount()
+  const rangeQuestions = getQuestionsForSelectedRange()
 
   let source
 
   if (shouldShuffleQuestions) {
-    source = shuffle(allQuestions)
+    source = shuffle(rangeQuestions)
   } else {
-    const startIndex = getStartIndexForSelectedEra()
-    source = allQuestions.slice(startIndex)
+    const startIndex = getStartIndexForSelectedEra(rangeQuestions)
+    source = rangeQuestions.slice(startIndex)
   }
 
   return source.slice(0, questionCount).map(cloneQuestion)
@@ -469,6 +591,8 @@ function selectChoice(selectedChoice) {
     }
   })
 
+  recordQuestionAttempt(item, isCorrect)
+
   if (reviewRound === 0) {
     if (isCorrect) {
       initialCorrectCount += 1
@@ -577,6 +701,7 @@ function showFinalScore() {
     : "❌だった問題もすべてクリアしました。"
   const missedQuestions = selectedQuestions.filter((item) => initialMissedQuestionKeys.has(item.questionKey))
   const celebrationHtml = buildCelebrationBlock(initialWrongCount === 0)
+  const historyMarkup = getHistoryItemsMarkup()
 
   lastQuizMissedQuestions = missedQuestions.map(cloneQuestion)
 
@@ -611,6 +736,7 @@ function showFinalScore() {
       </div>
     </div>
     <p class="summary-comment">${comment}<br>${masteryComment}${getEraComment() ? `<br>${getEraComment()}` : ""}</p>
+    ${historyMarkup}
   `
   summaryEl.classList.remove("hidden")
 
@@ -661,6 +787,20 @@ function startQuiz() {
 
   sessionMode = "normal"
   selectedQuestions = buildQuizFromSettings()
+  if (selectedQuestions.length === 0) {
+    questionEl.textContent = "出題できる問題がありません"
+    resetChoiceArea()
+    clearSummary()
+    clearProgress()
+    setMessage("その条件では出題できる問題が見つかりませんでした。設定を変えてください。", { error: true })
+    nextBtn.classList.add("hidden")
+    restartBtn.classList.add("hidden")
+    reviewMissedBtn.classList.add("hidden")
+    changeSettingsBtn.classList.remove("hidden")
+    return
+  }
+
+  resetQuestionStats(selectedQuestions)
   activeQuestions = selectedQuestions.map(createRuntimeQuestion)
   lastQuizMissedQuestions = []
   resetQuizState()
@@ -674,6 +814,7 @@ function startMissedReviewQuiz() {
 
   sessionMode = "review-missed"
   selectedQuestions = lastQuizMissedQuestions.map(cloneQuestion)
+  resetQuestionStats(selectedQuestions)
   activeQuestions = selectedQuestions.map(createRuntimeQuestion)
   resetQuizState()
   renderQuestion()
@@ -694,6 +835,7 @@ async function loadQuiz() {
     changeSettingsBtn.classList.add("hidden")
     questionCountEl.disabled = true
     randomModeEl.disabled = true
+    rangeModeEl.disabled = true
     startEraEl.disabled = true
     applySettingsBtn.disabled = true
 
@@ -708,11 +850,10 @@ async function loadQuiz() {
     }
 
     allQuestions = rawQuiz.map(sanitizeQuestionItem)
-    populateQuestionCountOptions(allQuestions.length)
-    populateStartEraOptions(allQuestions)
+    populateRangeOptions(allQuestions)
+    refreshSettingOptions()
     randomModeEl.checked = true
     randomModeEl.disabled = false
-    updateStartEraVisibility()
     applySettingsBtn.disabled = false
     startQuiz()
   } catch (error) {
@@ -729,6 +870,8 @@ async function loadQuiz() {
     questionCountEl.innerHTML = ""
     questionCountEl.disabled = true
     randomModeEl.disabled = true
+    rangeModeEl.innerHTML = ""
+    rangeModeEl.disabled = true
     startEraEl.innerHTML = ""
     startEraEl.disabled = true
     updateStartEraVisibility()
@@ -755,6 +898,10 @@ changeSettingsBtn.addEventListener("click", () => {
 
 randomModeEl.addEventListener("change", () => {
   updateStartEraVisibility()
+})
+
+rangeModeEl.addEventListener("change", () => {
+  refreshSettingOptions()
 })
 
 applySettingsBtn.addEventListener("click", () => {

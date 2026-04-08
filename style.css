@@ -303,6 +303,88 @@ button:disabled {
   font-weight: 800;
 }
 
+.history-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.history-heading {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.history-item {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.history-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.history-era {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.history-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.history-status-good {
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.history-status-review {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.history-question {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.history-note {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
 .progress {
   display: flex;
   flex-wrap: wrap;
@@ -419,5 +501,9 @@ button:disabled {
 
   .summary {
     padding: 16px;
+  }
+
+  .history-item {
+    padding: 12px;
   }
 }
