@@ -109,6 +109,57 @@ h1 {
   accent-color: var(--accent);
 }
 
+.study-record {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.study-record-title {
+  margin: 0 0 10px;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+.study-record-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.study-record-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.study-record-label {
+  display: block;
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.study-record-value {
+  display: block;
+  font-size: 1.02rem;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.study-record-note {
+  margin: 10px 0 0;
+  font-size: 0.88rem;
+  color: #475569;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
 .mode,
 .era {
   display: inline-block;
@@ -504,6 +555,10 @@ button:disabled {
   }
 
   .history-item {
+    padding: 12px;
+  }
+
+  .study-record {
     padding: 12px;
   }
 }

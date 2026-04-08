@@ -1,5 +1,7 @@
 const DATA_PATH = "quiz-data_rekishi3.json"
 const DEFAULT_QUESTION_COUNT = 10
+const STORAGE_PROFILE_KEY = "historyQuizAppLearningProfile_v1"
+const STORAGE_LAST_RESULT_KEY = "historyQuizAppLastResult_v1"
 
 const questionEl = document.getElementById("question")
 const choicesEl = document.getElementById("choices")
@@ -15,9 +17,11 @@ const modeEl = document.getElementById("mode")
 const questionCountEl = document.getElementById("question-count")
 const randomModeEl = document.getElementById("random-mode")
 const rangeModeEl = document.getElementById("range-mode")
+const practiceModeEl = document.getElementById("practice-mode")
 const startEraFieldEl = document.getElementById("start-era-field")
 const startEraEl = document.getElementById("start-era")
 const applySettingsBtn = document.getElementById("apply-settings")
+const studyRecordEl = document.getElementById("study-record")
 const settingsCardEl = document.querySelector(".settings-card")
 
 let allQuestions = []
@@ -36,6 +40,33 @@ let bestStreak = 0
 let sessionMode = "normal"
 let audioContext = null
 let questionStats = new Map()
+let learningProfile = createDefaultLearningProfile()
+let lastSessionResult = null
+
+function createDefaultLearningProfile() {
+  return {
+    version: 1,
+    totalSessions: 0,
+    lastPlayedAt: "",
+    questions: {}
+  }
+}
+
+function createDefaultStoredQuestion(item = {}) {
+  return {
+    questionKey: item.questionKey || "",
+    era: item.era || "",
+    question: item.question || "",
+    totalSessionsSeen: 0,
+    totalAttempts: 0,
+    totalWrongAnswers: 0,
+    firstTryCorrectCount: 0,
+    firstTryWrongCount: 0,
+    timesCleared: 0,
+    lastPlayedAt: "",
+    lastCorrectRound: null
+  }
+}
 
 function shuffle(array) {
   const copy = [...array]
@@ -326,6 +357,225 @@ async function playIncorrectSound() {
   }
 }
 
+function loadStoredState() {
+  try {
+    const rawProfile = window.localStorage.getItem(STORAGE_PROFILE_KEY)
+    if (rawProfile) {
+      const parsed = JSON.parse(rawProfile)
+      learningProfile = {
+        ...createDefaultLearningProfile(),
+        ...parsed,
+        questions: parsed.questions || {}
+      }
+    } else {
+      learningProfile = createDefaultLearningProfile()
+    }
+  } catch (error) {
+    console.error("load learning profile error", error)
+    learningProfile = createDefaultLearningProfile()
+  }
+
+  try {
+    const rawLastResult = window.localStorage.getItem(STORAGE_LAST_RESULT_KEY)
+    lastSessionResult = rawLastResult ? JSON.parse(rawLastResult) : null
+  } catch (error) {
+    console.error("load last result error", error)
+    lastSessionResult = null
+  }
+}
+
+function saveStoredState() {
+  try {
+    window.localStorage.setItem(STORAGE_PROFILE_KEY, JSON.stringify(learningProfile))
+  } catch (error) {
+    console.error("save learning profile error", error)
+  }
+
+  try {
+    if (lastSessionResult) {
+      window.localStorage.setItem(STORAGE_LAST_RESULT_KEY, JSON.stringify(lastSessionResult))
+    }
+  } catch (error) {
+    console.error("save last result error", error)
+  }
+}
+
+function getStoredQuestionRecord(itemOrKey) {
+  const key = typeof itemOrKey === "string" ? itemOrKey : itemOrKey.questionKey
+  const existing = learningProfile.questions?.[key]
+  if (existing) {
+    return existing
+  }
+
+  if (typeof itemOrKey === "string") {
+    return createDefaultStoredQuestion()
+  }
+
+  return createDefaultStoredQuestion(itemOrKey)
+}
+
+function getWeaknessScoreFromRecord(record) {
+  const wrongPressure = (record.totalWrongAnswers || 0) * 3 + (record.firstTryWrongCount || 0) * 4
+  const masteryRelief = (record.firstTryCorrectCount || 0) * 3 + Math.min(record.timesCleared || 0, 8)
+  return Math.max(0, wrongPressure - masteryRelief)
+}
+
+function getWeaknessScore(item) {
+  return getWeaknessScoreFromRecord(getStoredQuestionRecord(item))
+}
+
+function countWeakQuestions(questions) {
+  if (!Array.isArray(questions) || questions.length === 0) {
+    return 0
+  }
+
+  return questions.filter((item) => getWeaknessScore(item) > 0).length
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "まだありません"
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return "まだありません"
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date)
+}
+
+function getPracticeModeLabel(value) {
+  if (value === "weak-priority") {
+    return "苦手問題優先"
+  }
+  if (value === "weak-only") {
+    return "苦手問題だけ"
+  }
+  return "通常"
+}
+
+function getRangeModeLabel(value) {
+  if (!value || value === "all") {
+    return "全範囲"
+  }
+  return `${value}だけ`
+}
+
+function renderStudyRecord() {
+  if (!studyRecordEl) {
+    return
+  }
+
+  const practicedCount = Object.values(learningProfile.questions || {}).filter((record) => (record.totalSessionsSeen || 0) > 0).length
+  const weakAllCount = countWeakQuestions(allQuestions)
+  const rangeWeakCount = countWeakQuestions(getQuestionsForSelectedRange())
+  const lastAccuracy = lastSessionResult && Number.isFinite(lastSessionResult.accuracy)
+    ? `${lastSessionResult.accuracy}％`
+    : "--"
+  const lastPlayed = lastSessionResult ? formatDateTime(lastSessionResult.finishedAt) : "まだありません"
+  const lastMode = lastSessionResult
+    ? `${getPracticeModeLabel(lastSessionResult.practiceMode)} / ${getRangeModeLabel(lastSessionResult.rangeMode)}`
+    : "まだありません"
+
+  studyRecordEl.innerHTML = `
+    <p class="study-record-title">保存済み学習データ</p>
+    <div class="study-record-grid">
+      <div class="study-record-item">
+        <span class="study-record-label">学習済み問題</span>
+        <span class="study-record-value">${practicedCount}問</span>
+      </div>
+      <div class="study-record-item">
+        <span class="study-record-label">苦手問題</span>
+        <span class="study-record-value">${weakAllCount}問</span>
+      </div>
+      <div class="study-record-item">
+        <span class="study-record-label">現在の範囲の苦手</span>
+        <span class="study-record-value">${rangeWeakCount}問</span>
+      </div>
+      <div class="study-record-item">
+        <span class="study-record-label">前回正解率</span>
+        <span class="study-record-value">${lastAccuracy}</span>
+      </div>
+    </div>
+    <p class="study-record-note">前回学習: ${lastPlayed}<br>前回モード: ${lastMode}</p>
+  `
+  studyRecordEl.classList.remove("hidden")
+}
+
+function persistLearningData() {
+  const now = new Date().toISOString()
+
+  selectedQuestions.forEach((item) => {
+    const stat = ensureQuestionStat(item)
+    const record = {
+      ...createDefaultStoredQuestion(item),
+      ...getStoredQuestionRecord(item)
+    }
+
+    record.questionKey = item.questionKey
+    record.era = item.era || ""
+    record.question = item.question
+    record.totalSessionsSeen = (record.totalSessionsSeen || 0) + 1
+    record.totalAttempts = (record.totalAttempts || 0) + stat.attempts
+    record.totalWrongAnswers = (record.totalWrongAnswers || 0) + Math.max(0, stat.attempts - 1)
+
+    if (stat.firstAttemptCorrect) {
+      record.firstTryCorrectCount = (record.firstTryCorrectCount || 0) + 1
+    } else {
+      record.firstTryWrongCount = (record.firstTryWrongCount || 0) + 1
+    }
+
+    if (stat.correctRound !== null) {
+      record.timesCleared = (record.timesCleared || 0) + 1
+      record.lastCorrectRound = stat.correctRound
+    }
+
+    record.lastPlayedAt = now
+    learningProfile.questions[item.questionKey] = record
+  })
+
+  learningProfile.totalSessions = (learningProfile.totalSessions || 0) + 1
+  learningProfile.lastPlayedAt = now
+
+  lastSessionResult = {
+    finishedAt: now,
+    accuracy: getInitialAccuracy(),
+    totalQuestions: selectedQuestions.length,
+    correctQuestions: initialCorrectCount,
+    practiceMode: practiceModeEl.value || "normal",
+    rangeMode: rangeModeEl.value || "all"
+  }
+
+  saveStoredState()
+  renderStudyRecord()
+}
+
+function populatePracticeModeOptions() {
+  const options = [
+    { value: "normal", label: "通常" },
+    { value: "weak-priority", label: "苦手問題優先" },
+    { value: "weak-only", label: "苦手問題だけ" }
+  ]
+
+  practiceModeEl.innerHTML = ""
+  options.forEach((optionData) => {
+    const option = document.createElement("option")
+    option.value = optionData.value
+    option.textContent = optionData.label
+    practiceModeEl.appendChild(option)
+  })
+
+  practiceModeEl.value = "normal"
+  practiceModeEl.disabled = false
+}
+
 function populateRangeOptions(questions) {
   const eras = [...new Set(questions.map((item) => item.era).filter(Boolean))]
   rangeModeEl.innerHTML = ""
@@ -352,6 +602,24 @@ function getQuestionsForSelectedRange() {
     return [...allQuestions]
   }
   return allQuestions.filter((item) => item.era === selectedRange)
+}
+
+function applyPracticeModeToQuestions(questions) {
+  const practiceMode = practiceModeEl.value || "normal"
+  if (practiceMode === "normal") {
+    return [...questions]
+  }
+
+  const entries = shuffle(questions.map((item) => ({
+    item,
+    score: getWeaknessScore(item)
+  }))).sort((a, b) => b.score - a.score)
+
+  if (practiceMode === "weak-only") {
+    return entries.filter((entry) => entry.score > 0).map((entry) => entry.item)
+  }
+
+  return entries.map((entry) => entry.item)
 }
 
 function populateQuestionCountOptions(totalQuestions) {
@@ -409,21 +677,24 @@ function populateStartEraOptions(questions) {
 
 function refreshSettingOptions() {
   const rangeQuestions = getQuestionsForSelectedRange()
-  populateQuestionCountOptions(rangeQuestions.length)
+  const practiceQuestions = applyPracticeModeToQuestions(rangeQuestions)
+  populateQuestionCountOptions(practiceQuestions.length)
   populateStartEraOptions(rangeQuestions)
   updateStartEraVisibility()
+  renderStudyRecord()
 }
 
 function updateStartEraVisibility() {
   const hasEraOptions = startEraEl.options.length > 0
   const isAllRange = !rangeModeEl.value || rangeModeEl.value === "all"
-  const shouldShow = !randomModeEl.checked && isAllRange && hasEraOptions
+  const isNormalMode = !practiceModeEl.value || practiceModeEl.value === "normal"
+  const shouldShow = !randomModeEl.checked && isAllRange && isNormalMode && hasEraOptions
   startEraFieldEl.classList.toggle("hidden", !shouldShow)
   startEraEl.disabled = !shouldShow
 }
 
 function getSelectedQuestionCount() {
-  const availableQuestions = getQuestionsForSelectedRange().length
+  const availableQuestions = applyPracticeModeToQuestions(getQuestionsForSelectedRange()).length
   const selectedCount = Number.parseInt(questionCountEl.value, 10)
   if (!Number.isFinite(selectedCount) || selectedCount <= 0) {
     return Math.min(DEFAULT_QUESTION_COUNT, availableQuestions)
@@ -445,15 +716,17 @@ function getStartIndexForSelectedEra(sourceQuestions) {
 function buildQuizFromSettings() {
   const shouldShuffleQuestions = randomModeEl.checked
   const questionCount = getSelectedQuestionCount()
-  const rangeQuestions = getQuestionsForSelectedRange()
+  const practiceMode = practiceModeEl.value || "normal"
 
-  let source
+  let source = applyPracticeModeToQuestions(getQuestionsForSelectedRange())
 
-  if (shouldShuffleQuestions) {
-    source = shuffle(rangeQuestions)
-  } else {
-    const startIndex = getStartIndexForSelectedEra(rangeQuestions)
-    source = rangeQuestions.slice(startIndex)
+  if (practiceMode === "normal") {
+    if (shouldShuffleQuestions) {
+      source = shuffle(source)
+    } else {
+      const startIndex = getStartIndexForSelectedEra(source)
+      source = source.slice(startIndex)
+    }
   }
 
   return source.slice(0, questionCount).map(cloneQuestion)
@@ -482,6 +755,13 @@ function updateModeBadge() {
 
   if (sessionMode === "review-missed") {
     modeEl.textContent = "❌だけ復習モード"
+    modeEl.classList.remove("hidden")
+    return
+  }
+
+  const practiceMode = practiceModeEl.value || "normal"
+  if (practiceMode !== "normal") {
+    modeEl.textContent = getPracticeModeLabel(practiceMode)
     modeEl.classList.remove("hidden")
     return
   }
@@ -701,9 +981,12 @@ function showFinalScore() {
     : "❌だった問題もすべてクリアしました。"
   const missedQuestions = selectedQuestions.filter((item) => initialMissedQuestionKeys.has(item.questionKey))
   const celebrationHtml = buildCelebrationBlock(initialWrongCount === 0)
-  const historyMarkup = getHistoryItemsMarkup()
 
   lastQuizMissedQuestions = missedQuestions.map(cloneQuestion)
+  persistLearningData()
+
+  const cumulativeWeakCount = countWeakQuestions(allQuestions)
+  const historyMarkup = getHistoryItemsMarkup()
 
   modeEl.classList.add("hidden")
   eraEl.classList.add("hidden")
@@ -733,6 +1016,10 @@ function showFinalScore() {
       <div class="summary-item">
         <span class="summary-label">最高連続正解</span>
         <span class="summary-value">${bestStreak}問</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">累計苦手問題</span>
+        <span class="summary-value">${cumulativeWeakCount}問</span>
       </div>
     </div>
     <p class="summary-comment">${comment}<br>${masteryComment}${getEraComment() ? `<br>${getEraComment()}` : ""}</p>
@@ -787,12 +1074,19 @@ function startQuiz() {
 
   sessionMode = "normal"
   selectedQuestions = buildQuizFromSettings()
+
   if (selectedQuestions.length === 0) {
     questionEl.textContent = "出題できる問題がありません"
     resetChoiceArea()
     clearSummary()
     clearProgress()
-    setMessage("その条件では出題できる問題が見つかりませんでした。設定を変えてください。", { error: true })
+
+    const practiceMode = practiceModeEl.value || "normal"
+    const message = practiceMode === "weak-only"
+      ? "保存データに苦手問題がまだありません。まず通常モードで学習してください。"
+      : "その条件では出題できる問題が見つかりませんでした。設定を変えてください。"
+
+    setMessage(message, { error: true })
     nextBtn.classList.add("hidden")
     restartBtn.classList.add("hidden")
     reviewMissedBtn.classList.add("hidden")
@@ -836,8 +1130,11 @@ async function loadQuiz() {
     questionCountEl.disabled = true
     randomModeEl.disabled = true
     rangeModeEl.disabled = true
+    practiceModeEl.disabled = true
     startEraEl.disabled = true
     applySettingsBtn.disabled = true
+
+    loadStoredState()
 
     const response = await fetch(DATA_PATH, { cache: "no-store" })
     if (!response.ok) {
@@ -851,10 +1148,12 @@ async function loadQuiz() {
 
     allQuestions = rawQuiz.map(sanitizeQuestionItem)
     populateRangeOptions(allQuestions)
+    populatePracticeModeOptions()
     refreshSettingOptions()
     randomModeEl.checked = true
     randomModeEl.disabled = false
     applySettingsBtn.disabled = false
+    renderStudyRecord()
     startQuiz()
   } catch (error) {
     eraEl.classList.add("hidden")
@@ -872,6 +1171,8 @@ async function loadQuiz() {
     randomModeEl.disabled = true
     rangeModeEl.innerHTML = ""
     rangeModeEl.disabled = true
+    practiceModeEl.innerHTML = ""
+    practiceModeEl.disabled = true
     startEraEl.innerHTML = ""
     startEraEl.disabled = true
     updateStartEraVisibility()
@@ -901,6 +1202,10 @@ randomModeEl.addEventListener("change", () => {
 })
 
 rangeModeEl.addEventListener("change", () => {
+  refreshSettingOptions()
+})
+
+practiceModeEl.addEventListener("change", () => {
   refreshSettingOptions()
 })
 
