@@ -40,6 +40,28 @@ function resetChoiceArea() {
   choicesEl.innerHTML = "";
 }
 
+function stripAttachedReading(text) {
+  if (typeof text !== "string" || text.length === 0) {
+    return text;
+  }
+
+  return text.replace(
+    /([^\s、。,.!?「」『』（）()【】\[\]]+?[一-龯々ヶヵ][^\s、。,.!?「」『』（）()【】\[\]]*?)([ァ-ヴー]{2,})(?=[、。,.!?」』）】\]\s]|$)/g,
+    "$1"
+  );
+}
+
+function sanitizeQuestionItem(item) {
+  return {
+    ...item,
+    answer: stripAttachedReading(item.answer || ""),
+    wrongChoices: Array.isArray(item.wrongChoices)
+      ? item.wrongChoices.map((choice) => stripAttachedReading(choice))
+      : [],
+    explanation: stripAttachedReading(item.explanation || "")
+  };
+}
+
 function createRuntimeQuestion(item) {
   return {
     ...item,
@@ -326,7 +348,7 @@ async function loadQuiz() {
       throw new Error("出題できる問題が見つかりませんでした。");
     }
 
-    allQuestions = rawQuiz;
+    allQuestions = rawQuiz.map(sanitizeQuestionItem);
     populateQuestionCountOptions(allQuestions.length);
     startQuiz();
   } catch (error) {
