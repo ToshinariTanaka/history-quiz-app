@@ -1,116 +1,130 @@
-const DATA_PATH = "quiz-data_rekishi3.json";
-const DEFAULT_QUESTION_COUNT = 10;
+const DATA_PATH = "quiz-data_rekishi3.json"
+const DEFAULT_QUESTION_COUNT = 10
 
-const questionEl = document.getElementById("question");
-const choicesEl = document.getElementById("choices");
-const resultEl = document.getElementById("result");
-const progressEl = document.getElementById("progress");
-const nextBtn = document.getElementById("next");
-const restartBtn = document.getElementById("restart");
-const eraEl = document.getElementById("era");
-const questionCountEl = document.getElementById("question-count");
-const randomModeEl = document.getElementById("random-mode");
-const startEraFieldEl = document.getElementById("start-era-field");
-const startEraEl = document.getElementById("start-era");
-const applySettingsBtn = document.getElementById("apply-settings");
+const questionEl = document.getElementById("question")
+const choicesEl = document.getElementById("choices")
+const resultEl = document.getElementById("result")
+const summaryEl = document.getElementById("summary")
+const progressEl = document.getElementById("progress")
+const nextBtn = document.getElementById("next")
+const restartBtn = document.getElementById("restart")
+const changeSettingsBtn = document.getElementById("change-settings")
+const eraEl = document.getElementById("era")
+const modeEl = document.getElementById("mode")
+const questionCountEl = document.getElementById("question-count")
+const randomModeEl = document.getElementById("random-mode")
+const startEraFieldEl = document.getElementById("start-era-field")
+const startEraEl = document.getElementById("start-era")
+const applySettingsBtn = document.getElementById("apply-settings")
+const settingsCardEl = document.querySelector(".settings-card")
 
-let allQuestions = [];
-let quiz = [];
-let currentIndex = 0;
-let score = 0;
-let answered = false;
-let audioContext = null;
+let allQuestions = []
+let selectedQuestions = []
+let activeQuestions = []
+let currentIndex = 0
+let initialCorrectCount = 0
+let initialWrongCount = 0
+let reviewRound = 0
+let answered = false
+let unresolvedQuestionKeys = new Set()
+let audioContext = null
 
 function shuffle(array) {
-  const copy = [...array];
+  const copy = [...array]
   for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
   }
-  return copy;
+  return copy
 }
 
 function setMessage(message, options = {}) {
-  const { hidden = false, success = false, error = false } = options;
-  resultEl.textContent = message;
-  resultEl.classList.toggle("hidden", hidden);
-  resultEl.classList.toggle("success", success);
-  resultEl.classList.toggle("error", error);
+  const { hidden = false, success = false, error = false } = options
+  resultEl.textContent = message
+  resultEl.classList.toggle("hidden", hidden)
+  resultEl.classList.toggle("success", success)
+  resultEl.classList.toggle("error", error)
+}
+
+function clearSummary() {
+  summaryEl.innerHTML = ""
+  summaryEl.classList.add("hidden")
 }
 
 function resetChoiceArea() {
-  choicesEl.innerHTML = "";
+  choicesEl.innerHTML = ""
 }
 
 function scrollElementIntoView(element) {
   if (!element) {
-    return;
+    return
   }
 
   const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ? "auto"
-    : "smooth";
+    : "smooth"
 
   window.requestAnimationFrame(() => {
     window.setTimeout(() => {
-      element.scrollIntoView({ behavior, block: "center" });
-    }, 120);
-  });
+      element.scrollIntoView({ behavior, block: "center" })
+    }, 120)
+  })
 }
 
 function stripAttachedReading(text) {
   if (typeof text !== "string" || text.length === 0) {
-    return text;
+    return text
   }
 
   return text.replace(
     /([^\s、。,.!?「」『』（）()【】\[\]]+?[一-龯々ヶヵ][^\s、。,.!?「」『』（）()【】\[\]]*?)([ァ-ヴー]{2,})(?=[、。,.!?」』）】\]\s]|$)/g,
     "$1"
-  );
+  )
 }
 
 function sanitizeQuestionItem(item) {
   return {
     ...item,
+    questionKey: item.id ?? `${item.era || ""}::${item.question}`,
     answer: stripAttachedReading(item.answer || ""),
     wrongChoices: Array.isArray(item.wrongChoices)
       ? item.wrongChoices.map((choice) => stripAttachedReading(choice))
       : [],
     explanation: stripAttachedReading(item.explanation || "")
-  };
+  }
 }
 
 function createRuntimeQuestion(item) {
   return {
     ...item,
     choices: shuffle([item.answer, ...(item.wrongChoices || [])])
-  };
+  }
 }
 
 function getAudioContext() {
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext
   if (!AudioContextClass) {
-    return null;
+    return null
   }
 
   if (!audioContext) {
-    audioContext = new AudioContextClass();
+    audioContext = new AudioContextClass()
   }
 
-  return audioContext;
+  return audioContext
 }
 
 async function prepareAudio() {
-  const context = getAudioContext();
+  const context = getAudioContext()
   if (!context) {
-    return null;
+    return null
   }
 
   if (context.state === "suspended") {
-    await context.resume();
+    await context.resume()
   }
 
-  return context;
+  return context
 }
 
 function playTone(context, {
@@ -123,32 +137,32 @@ function playTone(context, {
   release = 0.08,
   endFrequency = frequency
 }) {
-  const oscillator = context.createOscillator();
-  const gainNode = context.createGain();
-  const now = context.currentTime;
-  const startTime = now + startOffset;
-  const stopTime = startTime + duration;
+  const oscillator = context.createOscillator()
+  const gainNode = context.createGain()
+  const now = context.currentTime
+  const startTime = now + startOffset
+  const stopTime = startTime + duration
 
-  oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, startTime);
-  oscillator.frequency.linearRampToValueAtTime(endFrequency, stopTime);
+  oscillator.type = type
+  oscillator.frequency.setValueAtTime(frequency, startTime)
+  oscillator.frequency.linearRampToValueAtTime(endFrequency, stopTime)
 
-  gainNode.gain.setValueAtTime(0.0001, startTime);
-  gainNode.gain.linearRampToValueAtTime(volume, startTime + attack);
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, stopTime + release);
+  gainNode.gain.setValueAtTime(0.0001, startTime)
+  gainNode.gain.linearRampToValueAtTime(volume, startTime + attack)
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, stopTime + release)
 
-  oscillator.connect(gainNode);
-  gainNode.connect(context.destination);
+  oscillator.connect(gainNode)
+  gainNode.connect(context.destination)
 
-  oscillator.start(startTime);
-  oscillator.stop(stopTime + release);
+  oscillator.start(startTime)
+  oscillator.stop(stopTime + release)
 }
 
 async function playCorrectSound() {
   try {
-    const context = await prepareAudio();
+    const context = await prepareAudio()
     if (!context) {
-      return;
+      return
     }
 
     playTone(context, {
@@ -160,7 +174,7 @@ async function playCorrectSound() {
       volume: 0.12,
       attack: 0.01,
       release: 0.1
-    });
+    })
 
     playTone(context, {
       type: "triangle",
@@ -171,7 +185,7 @@ async function playCorrectSound() {
       volume: 0.14,
       attack: 0.01,
       release: 0.12
-    });
+    })
 
     playTone(context, {
       type: "sine",
@@ -182,17 +196,17 @@ async function playCorrectSound() {
       volume: 0.1,
       attack: 0.01,
       release: 0.18
-    });
+    })
   } catch (error) {
-    console.error("correct sound error", error);
+    console.error("correct sound error", error)
   }
 }
 
 async function playIncorrectSound() {
   try {
-    const context = await prepareAudio();
+    const context = await prepareAudio()
     if (!context) {
-      return;
+      return
     }
 
     playTone(context, {
@@ -204,7 +218,7 @@ async function playIncorrectSound() {
       volume: 0.13,
       attack: 0.01,
       release: 0.08
-    });
+    })
 
     playTone(context, {
       type: "square",
@@ -215,277 +229,450 @@ async function playIncorrectSound() {
       volume: 0.08,
       attack: 0.01,
       release: 0.1
-    });
+    })
   } catch (error) {
-    console.error("incorrect sound error", error);
+    console.error("incorrect sound error", error)
   }
 }
 
 function populateQuestionCountOptions(totalQuestions) {
-  questionCountEl.innerHTML = "";
+  questionCountEl.innerHTML = ""
 
-  const presets = [10, 20, 30, 50, 100].filter((count) => count < totalQuestions);
-  const counts = [...presets, totalQuestions];
+  const presets = [10, 20, 30, 50, 100].filter((count) => count < totalQuestions)
+  const counts = [...presets, totalQuestions]
 
   counts.forEach((count) => {
-    const option = document.createElement("option");
-    option.value = String(count);
-    option.textContent = count === totalQuestions ? `全部（${count}問）` : `${count}問`;
-    questionCountEl.appendChild(option);
-  });
+    const option = document.createElement("option")
+    option.value = String(count)
+    option.textContent = count === totalQuestions ? `全部（${count}問）` : `${count}問`
+    questionCountEl.appendChild(option)
+  })
 
   const defaultCount = counts.includes(DEFAULT_QUESTION_COUNT)
     ? DEFAULT_QUESTION_COUNT
-    : totalQuestions;
+    : totalQuestions
 
-  questionCountEl.value = String(defaultCount);
-  questionCountEl.disabled = false;
+  questionCountEl.value = String(defaultCount)
+  questionCountEl.disabled = false
 }
 
 function populateStartEraOptions(questions) {
-  const eras = [];
-  const seen = new Set();
+  const eras = []
+  const seen = new Set()
 
   questions.forEach((item) => {
     if (!item.era || seen.has(item.era)) {
-      return;
+      return
     }
 
-    seen.add(item.era);
-    eras.push(item.era);
-  });
+    seen.add(item.era)
+    eras.push(item.era)
+  })
 
-  startEraEl.innerHTML = "";
+  startEraEl.innerHTML = ""
 
   eras.forEach((era) => {
-    const option = document.createElement("option");
-    option.value = era;
-    option.textContent = `${era}から`;
-    startEraEl.appendChild(option);
-  });
+    const option = document.createElement("option")
+    option.value = era
+    option.textContent = `${era}から`
+    startEraEl.appendChild(option)
+  })
 
   if (eras.length > 0) {
-    startEraEl.value = eras[0];
+    startEraEl.value = eras[0]
   }
 }
 
 function updateStartEraVisibility() {
-  const shouldShow = !randomModeEl.checked && startEraEl.options.length > 0;
-  startEraFieldEl.classList.toggle("hidden", !shouldShow);
-  startEraEl.disabled = !shouldShow;
+  const shouldShow = !randomModeEl.checked && startEraEl.options.length > 0
+  startEraFieldEl.classList.toggle("hidden", !shouldShow)
+  startEraEl.disabled = !shouldShow
 }
 
 function getSelectedQuestionCount() {
-  const selectedCount = Number.parseInt(questionCountEl.value, 10);
+  const selectedCount = Number.parseInt(questionCountEl.value, 10)
   if (!Number.isFinite(selectedCount) || selectedCount <= 0) {
-    return Math.min(DEFAULT_QUESTION_COUNT, allQuestions.length);
+    return Math.min(DEFAULT_QUESTION_COUNT, allQuestions.length)
   }
 
-  return Math.min(selectedCount, allQuestions.length);
+  return Math.min(selectedCount, allQuestions.length)
 }
 
 function getStartIndexForSelectedEra() {
   if (randomModeEl.checked) {
-    return 0;
+    return 0
   }
 
-  const selectedEra = startEraEl.value;
-  const startIndex = allQuestions.findIndex((item) => item.era === selectedEra);
-  return startIndex >= 0 ? startIndex : 0;
+  const selectedEra = startEraEl.value
+  const startIndex = allQuestions.findIndex((item) => item.era === selectedEra)
+  return startIndex >= 0 ? startIndex : 0
 }
 
 function buildQuizFromSettings() {
-  const shouldShuffleQuestions = randomModeEl.checked;
-  const questionCount = getSelectedQuestionCount();
+  const shouldShuffleQuestions = randomModeEl.checked
+  const questionCount = getSelectedQuestionCount()
 
-  let source;
+  let source
 
   if (shouldShuffleQuestions) {
-    source = shuffle(allQuestions);
+    source = shuffle(allQuestions)
   } else {
-    const startIndex = getStartIndexForSelectedEra();
-    source = allQuestions.slice(startIndex);
+    const startIndex = getStartIndexForSelectedEra()
+    source = allQuestions.slice(startIndex)
   }
 
-  return source.slice(0, questionCount).map(createRuntimeQuestion);
+  return source.slice(0, questionCount).map((item) => ({
+    ...item,
+    wrongChoices: [...(item.wrongChoices || [])]
+  }))
 }
 
 function clearProgress() {
-  progressEl.innerHTML = "";
+  progressEl.innerHTML = ""
 }
 
-function updateProgress(questionNumber, totalQuestions, answeredCount) {
-  if (!Number.isFinite(totalQuestions) || totalQuestions <= 0) {
-    clearProgress();
-    return;
+function updateModeBadge() {
+  if (reviewRound > 0) {
+    modeEl.textContent = `❌だった問題の復習（${reviewRound}周目）`
+    modeEl.classList.remove("hidden")
+  } else {
+    modeEl.textContent = ""
+    modeEl.classList.add("hidden")
+  }
+}
+
+function getInitialAccuracy() {
+  if (selectedQuestions.length === 0) {
+    return 0
   }
 
-  const safeQuestionNumber = Math.min(Math.max(questionNumber, 0), totalQuestions);
-  const safeAnsweredCount = Math.min(Math.max(answeredCount, 0), totalQuestions);
-  const accuracy = safeAnsweredCount === 0
-    ? null
-    : Math.round((score / safeAnsweredCount) * 100);
+  return Math.round((initialCorrectCount / selectedQuestions.length) * 100)
+}
 
+function updateProgress(answeredThisQuestion = false) {
+  if (selectedQuestions.length === 0) {
+    clearProgress()
+    return
+  }
+
+  if (reviewRound === 0) {
+    const questionNumber = Math.min(currentIndex + 1, selectedQuestions.length)
+    const answeredCount = Math.min(
+      currentIndex + (answeredThisQuestion ? 1 : 0),
+      selectedQuestions.length
+    )
+    const accuracy = answeredCount === 0
+      ? null
+      : Math.round((initialCorrectCount / answeredCount) * 100)
+
+    progressEl.innerHTML = `
+      <span class="progress-item progress-primary">${questionNumber}/${selectedQuestions.length}問</span>
+      <span class="progress-item">${initialCorrectCount}/${answeredCount}正解</span>
+      <span class="progress-item">${accuracy === null ? "正解率--" : `正解率${accuracy}％`}</span>
+    `
+    return
+  }
+
+  const reviewPosition = Math.min(currentIndex + 1, activeQuestions.length)
   progressEl.innerHTML = `
-    <span class="progress-item progress-primary">${safeQuestionNumber}/${totalQuestions}問</span>
-    <span class="progress-item">${score}/${safeAnsweredCount}正解</span>
-    <span class="progress-item">${accuracy === null ? "正解率--" : `正解率${accuracy}％`}</span>
-  `;
+    <span class="progress-item progress-primary">復習${reviewRound}周目 ${reviewPosition}/${activeQuestions.length}問</span>
+    <span class="progress-item">のこり${unresolvedQuestionKeys.size}問</span>
+    <span class="progress-item">初回正解率${getInitialAccuracy()}％</span>
+  `
+}
+
+function getCurrentQuestion() {
+  return activeQuestions[currentIndex]
 }
 
 function renderQuestion() {
-  const item = quiz[currentIndex];
+  const item = getCurrentQuestion()
   if (!item) {
-    showFinalScore();
-    return;
+    showFinalScore()
+    return
   }
 
-  answered = false;
-  questionEl.textContent = item.question;
-  eraEl.textContent = item.era || "";
-  eraEl.classList.toggle("hidden", !item.era);
+  answered = false
+  clearSummary()
+  updateModeBadge()
+  questionEl.textContent = item.question
+  eraEl.textContent = item.era || ""
+  eraEl.classList.toggle("hidden", !item.era)
 
-  setMessage("", { hidden: true });
-  nextBtn.disabled = true;
-  nextBtn.classList.add("hidden");
-  restartBtn.classList.add("hidden");
-  updateProgress(currentIndex + 1, quiz.length, currentIndex);
+  setMessage("", { hidden: true })
+  nextBtn.disabled = true
+  nextBtn.classList.add("hidden")
+  restartBtn.classList.add("hidden")
+  changeSettingsBtn.classList.add("hidden")
+  updateProgress(false)
 
-  resetChoiceArea();
+  resetChoiceArea()
 
   item.choices.forEach((choice) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "choice-btn";
-    button.textContent = choice;
-    button.setAttribute("role", "listitem");
-    button.addEventListener("click", () => selectChoice(choice));
-    choicesEl.appendChild(button);
-  });
+    const button = document.createElement("button")
+    button.type = "button"
+    button.className = "choice-btn"
+    button.textContent = choice
+    button.setAttribute("role", "listitem")
+    button.addEventListener("click", () => selectChoice(choice))
+    choicesEl.appendChild(button)
+  })
 }
 
 function selectChoice(selectedChoice) {
-  if (answered) return;
-  answered = true;
-
-  const item = quiz[currentIndex];
-  const buttons = Array.from(document.querySelectorAll(".choice-btn"));
-
-  buttons.forEach((button) => {
-    button.disabled = true;
-    if (button.textContent === item.answer) {
-      button.classList.add("correct");
-    } else if (button.textContent === selectedChoice) {
-      button.classList.add("incorrect");
-    }
-  });
-
-  if (selectedChoice === item.answer) {
-    score += 1;
-    setMessage(`正解です。${item.explanation}`, { success: true });
-    void playCorrectSound();
-  } else {
-    setMessage(`不正解です。正解は「${item.answer}」です。${item.explanation}`, { error: true });
-    void playIncorrectSound();
+  if (answered) {
+    return
   }
 
-  updateProgress(currentIndex + 1, quiz.length, currentIndex + 1);
-  nextBtn.disabled = false;
-  nextBtn.classList.remove("hidden");
-  scrollElementIntoView(nextBtn);
+  answered = true
+
+  const item = getCurrentQuestion()
+  const buttons = Array.from(document.querySelectorAll(".choice-btn"))
+  const isCorrect = selectedChoice === item.answer
+
+  buttons.forEach((button) => {
+    button.disabled = true
+    if (button.textContent === item.answer) {
+      button.classList.add("correct")
+    } else if (button.textContent === selectedChoice) {
+      button.classList.add("incorrect")
+    }
+  })
+
+  if (reviewRound === 0) {
+    if (isCorrect) {
+      initialCorrectCount += 1
+      setMessage(`正解です。${item.explanation}`, { success: true })
+      void playCorrectSound()
+    } else {
+      unresolvedQuestionKeys.add(item.questionKey)
+      setMessage(`不正解です。正解は「${item.answer}」です。この問題はあとでもう一度出ます。${item.explanation}`, { error: true })
+      void playIncorrectSound()
+    }
+  } else if (isCorrect) {
+    unresolvedQuestionKeys.delete(item.questionKey)
+    setMessage(`正解です。これでこの問題はクリアです。${item.explanation}`, { success: true })
+    void playCorrectSound()
+  } else {
+    unresolvedQuestionKeys.add(item.questionKey)
+    setMessage(`不正解です。正解は「${item.answer}」です。この問題はあとでもう一度出ます。${item.explanation}`, { error: true })
+    void playIncorrectSound()
+  }
+
+  updateProgress(true)
+  nextBtn.disabled = false
+  nextBtn.classList.remove("hidden")
+  scrollElementIntoView(nextBtn)
+}
+
+function beginReviewRound() {
+  reviewRound += 1
+  const remainingQuestions = selectedQuestions.filter((item) => unresolvedQuestionKeys.has(item.questionKey))
+  activeQuestions = shuffle(remainingQuestions).map(createRuntimeQuestion)
+  currentIndex = 0
+  renderQuestion()
+}
+
+function getRankLabel(accuracy) {
+  if (accuracy === 100) {
+    return "S"
+  }
+  if (accuracy >= 80) {
+    return "A"
+  }
+  if (accuracy >= 60) {
+    return "B"
+  }
+  if (accuracy >= 40) {
+    return "C"
+  }
+  return "D"
+}
+
+function getEvaluationComment(accuracy) {
+  if (accuracy === 100) {
+    return "完璧です！"
+  }
+  if (accuracy >= 80) {
+    return "とてもよくできました！"
+  }
+  if (accuracy >= 60) {
+    return "あと少しで高得点です！"
+  }
+  if (accuracy >= 40) {
+    return "復習するとさらに伸びます！"
+  }
+  return "もう一度挑戦して覚えよう！"
+}
+
+function getEraComment() {
+  const eras = [...new Set(selectedQuestions.map((item) => item.era).filter(Boolean))]
+  if (eras.length === 0) {
+    return ""
+  }
+  if (eras.length === 1) {
+    return `${eras[0]}時代の重要事項を復習できました。`
+  }
+  return `${eras[0]}から${eras[eras.length - 1]}までを復習できました。`
 }
 
 function showFinalScore() {
-  eraEl.classList.add("hidden");
-  questionEl.textContent = "クイズ終了";
-  resetChoiceArea();
-  setMessage(`${quiz.length}問中 ${score}問正解でした。`, { success: true });
-  updateProgress(quiz.length, quiz.length, quiz.length);
-  nextBtn.classList.add("hidden");
-  restartBtn.classList.remove("hidden");
-  scrollElementIntoView(restartBtn);
+  const totalQuestions = selectedQuestions.length
+  const accuracy = getInitialAccuracy()
+  const rank = getRankLabel(accuracy)
+  const comment = getEvaluationComment(accuracy)
+  const wrongCountLabel = `${initialWrongCount}問`
+  const reviewRoundsLabel = initialWrongCount === 0 ? "なし" : `${reviewRound}周`
+  const masteryComment = initialWrongCount === 0
+    ? "全問一発クリアです。"
+    : "❌だった問題もすべてクリアしました。"
+
+  modeEl.classList.add("hidden")
+  eraEl.classList.add("hidden")
+  questionEl.textContent = "クイズ終了"
+  resetChoiceArea()
+  setMessage("", { hidden: true })
+  clearProgress()
+
+  summaryEl.innerHTML = `
+    <p class="summary-heading">総合結果</p>
+    <p class="summary-score">${totalQuestions}問中 ${initialCorrectCount}問正解！</p>
+    <p class="summary-subscore">初回正解率 ${accuracy}％</p>
+    <div class="summary-meta">
+      <div class="summary-item">
+        <span class="summary-label">ランク</span>
+        <span class="summary-value">${rank}</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">まちがえた問題</span>
+        <span class="summary-value">${wrongCountLabel}</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">復習周回</span>
+        <span class="summary-value">${reviewRoundsLabel}</span>
+      </div>
+    </div>
+    <p class="summary-comment">${comment}<br>${masteryComment}${getEraComment() ? `<br>${getEraComment()}` : ""}</p>
+  `
+  summaryEl.classList.remove("hidden")
+
+  nextBtn.classList.add("hidden")
+  restartBtn.classList.remove("hidden")
+  changeSettingsBtn.classList.remove("hidden")
+  scrollElementIntoView(summaryEl)
+}
+
+function advanceQuiz() {
+  currentIndex += 1
+
+  if (currentIndex < activeQuestions.length) {
+    renderQuestion()
+    return
+  }
+
+  if (reviewRound === 0) {
+    initialWrongCount = unresolvedQuestionKeys.size
+  }
+
+  if (unresolvedQuestionKeys.size > 0) {
+    beginReviewRound()
+    return
+  }
+
+  showFinalScore()
 }
 
 function startQuiz() {
   if (allQuestions.length === 0) {
-    return;
+    return
   }
 
-  quiz = buildQuizFromSettings();
-  currentIndex = 0;
-  score = 0;
-  renderQuestion();
+  selectedQuestions = buildQuizFromSettings()
+  activeQuestions = selectedQuestions.map(createRuntimeQuestion)
+  currentIndex = 0
+  initialCorrectCount = 0
+  initialWrongCount = 0
+  reviewRound = 0
+  answered = false
+  unresolvedQuestionKeys = new Set()
+  clearSummary()
+  renderQuestion()
 }
 
 async function loadQuiz() {
   try {
-    questionEl.textContent = "問題を読み込み中…";
-    eraEl.classList.add("hidden");
-    resetChoiceArea();
-    setMessage("", { hidden: true });
-    clearProgress();
-    nextBtn.classList.add("hidden");
-    restartBtn.classList.add("hidden");
-    questionCountEl.disabled = true;
-    randomModeEl.disabled = true;
-    startEraEl.disabled = true;
-    applySettingsBtn.disabled = true;
+    questionEl.textContent = "問題を読み込み中…"
+    eraEl.classList.add("hidden")
+    modeEl.classList.add("hidden")
+    resetChoiceArea()
+    clearSummary()
+    setMessage("", { hidden: true })
+    clearProgress()
+    nextBtn.classList.add("hidden")
+    restartBtn.classList.add("hidden")
+    changeSettingsBtn.classList.add("hidden")
+    questionCountEl.disabled = true
+    randomModeEl.disabled = true
+    startEraEl.disabled = true
+    applySettingsBtn.disabled = true
 
-    const response = await fetch(DATA_PATH, { cache: "no-store" });
+    const response = await fetch(DATA_PATH, { cache: "no-store" })
     if (!response.ok) {
-      throw new Error("問題データを読み込めませんでした。");
+      throw new Error("問題データを読み込めませんでした。")
     }
 
-    const rawQuiz = await response.json();
+    const rawQuiz = await response.json()
     if (!Array.isArray(rawQuiz) || rawQuiz.length === 0) {
-      throw new Error("出題できる問題が見つかりませんでした。");
+      throw new Error("出題できる問題が見つかりませんでした。")
     }
 
-    allQuestions = rawQuiz.map(sanitizeQuestionItem);
-    populateQuestionCountOptions(allQuestions.length);
-    populateStartEraOptions(allQuestions);
-    randomModeEl.checked = true;
-    randomModeEl.disabled = false;
-    updateStartEraVisibility();
-    applySettingsBtn.disabled = false;
-    startQuiz();
+    allQuestions = rawQuiz.map(sanitizeQuestionItem)
+    populateQuestionCountOptions(allQuestions.length)
+    populateStartEraOptions(allQuestions)
+    randomModeEl.checked = true
+    randomModeEl.disabled = false
+    updateStartEraVisibility()
+    applySettingsBtn.disabled = false
+    startQuiz()
   } catch (error) {
-    eraEl.classList.add("hidden");
-    questionEl.textContent = "読み込みエラー";
-    resetChoiceArea();
-    clearProgress();
-    nextBtn.classList.add("hidden");
-    restartBtn.classList.add("hidden");
-    questionCountEl.innerHTML = "";
-    questionCountEl.disabled = true;
-    randomModeEl.disabled = true;
-    startEraEl.innerHTML = "";
-    startEraEl.disabled = true;
-    updateStartEraVisibility();
-    applySettingsBtn.disabled = true;
-    setMessage(error.message || "問題データを読み込めませんでした。", { error: true });
+    eraEl.classList.add("hidden")
+    modeEl.classList.add("hidden")
+    questionEl.textContent = "読み込みエラー"
+    resetChoiceArea()
+    clearSummary()
+    clearProgress()
+    nextBtn.classList.add("hidden")
+    restartBtn.classList.add("hidden")
+    changeSettingsBtn.classList.add("hidden")
+    questionCountEl.innerHTML = ""
+    questionCountEl.disabled = true
+    randomModeEl.disabled = true
+    startEraEl.innerHTML = ""
+    startEraEl.disabled = true
+    updateStartEraVisibility()
+    applySettingsBtn.disabled = true
+    setMessage(error.message || "問題データを読み込めませんでした。", { error: true })
   }
 }
 
 nextBtn.addEventListener("click", () => {
-  currentIndex += 1;
-  if (currentIndex < quiz.length) {
-    renderQuestion();
-  } else {
-    showFinalScore();
-  }
-});
+  advanceQuiz()
+})
 
 restartBtn.addEventListener("click", () => {
-  startQuiz();
-});
+  startQuiz()
+})
+
+changeSettingsBtn.addEventListener("click", () => {
+  scrollElementIntoView(settingsCardEl)
+})
 
 randomModeEl.addEventListener("change", () => {
-  updateStartEraVisibility();
-});
+  updateStartEraVisibility()
+})
 
 applySettingsBtn.addEventListener("click", () => {
-  startQuiz();
-});
+  startQuiz()
+})
 
-loadQuiz();
+loadQuiz()
