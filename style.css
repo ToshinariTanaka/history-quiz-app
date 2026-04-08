@@ -214,6 +214,37 @@ button:disabled {
   background: var(--summary-bg);
 }
 
+.summary-celebration {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff7ed 0%, #fefce8 100%);
+  border: 1px solid #fed7aa;
+  text-align: center;
+  animation: celebration-pop 0.55s ease-out;
+}
+
+.celebration-stamp {
+  font-size: clamp(1.2rem, 4.2vw, 1.7rem);
+  font-weight: 900;
+  color: #c2410c;
+  letter-spacing: 0.02em;
+}
+
+.celebration-sub {
+  margin-top: 6px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #7c2d12;
+}
+
+.celebration-confetti {
+  margin-top: 10px;
+  font-size: 1.1rem;
+  letter-spacing: 0.18em;
+  animation: confetti-float 1.8s ease-in-out infinite;
+}
+
 .summary-heading {
   margin: 0 0 8px;
   font-size: 1.2rem;
@@ -313,6 +344,31 @@ button:disabled {
 
 .hidden {
   display: none;
+}
+
+@keyframes celebration-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes confetti-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 @media (max-width: 700px) {

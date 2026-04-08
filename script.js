@@ -8,6 +8,7 @@ const summaryEl = document.getElementById("summary")
 const progressEl = document.getElementById("progress")
 const nextBtn = document.getElementById("next")
 const restartBtn = document.getElementById("restart")
+const reviewMissedBtn = document.getElementById("review-missed")
 const changeSettingsBtn = document.getElementById("change-settings")
 const eraEl = document.getElementById("era")
 const modeEl = document.getElementById("mode")
@@ -27,6 +28,11 @@ let initialWrongCount = 0
 let reviewRound = 0
 let answered = false
 let unresolvedQuestionKeys = new Set()
+let initialMissedQuestionKeys = new Set()
+let lastQuizMissedQuestions = []
+let currentStreak = 0
+let bestStreak = 0
+let sessionMode = "normal"
 let audioContext = null
 
 function shuffle(array) {
@@ -98,6 +104,13 @@ function createRuntimeQuestion(item) {
   return {
     ...item,
     choices: shuffle([item.answer, ...(item.wrongChoices || [])])
+  }
+}
+
+function cloneQuestion(item) {
+  return {
+    ...item,
+    wrongChoices: [...(item.wrongChoices || [])]
   }
 }
 
@@ -321,24 +334,38 @@ function buildQuizFromSettings() {
     source = allQuestions.slice(startIndex)
   }
 
-  return source.slice(0, questionCount).map((item) => ({
-    ...item,
-    wrongChoices: [...(item.wrongChoices || [])]
-  }))
+  return source.slice(0, questionCount).map(cloneQuestion)
 }
 
 function clearProgress() {
   progressEl.innerHTML = ""
 }
 
+function renderStreakChip() {
+  if (currentStreak <= 0) {
+    return '<span class="progress-item">連続正解0</span>'
+  }
+
+  const fire = currentStreak >= 3 ? "🔥 " : ""
+  return `<span class="progress-item">${fire}連続正解${currentStreak}</span>`
+}
+
 function updateModeBadge() {
   if (reviewRound > 0) {
-    modeEl.textContent = `❌だった問題の復習（${reviewRound}周目）`
+    const prefix = sessionMode === "review-missed" ? "❌だけ復習モード" : "❌だった問題の復習"
+    modeEl.textContent = `${prefix}（${reviewRound}周目）`
     modeEl.classList.remove("hidden")
-  } else {
-    modeEl.textContent = ""
-    modeEl.classList.add("hidden")
+    return
   }
+
+  if (sessionMode === "review-missed") {
+    modeEl.textContent = "❌だけ復習モード"
+    modeEl.classList.remove("hidden")
+    return
+  }
+
+  modeEl.textContent = ""
+  modeEl.classList.add("hidden")
 }
 
 function getInitialAccuracy() {
@@ -369,6 +396,7 @@ function updateProgress(answeredThisQuestion = false) {
       <span class="progress-item progress-primary">${questionNumber}/${selectedQuestions.length}問</span>
       <span class="progress-item">${initialCorrectCount}/${answeredCount}正解</span>
       <span class="progress-item">${accuracy === null ? "正解率--" : `正解率${accuracy}％`}</span>
+      ${renderStreakChip()}
     `
     return
   }
@@ -378,6 +406,7 @@ function updateProgress(answeredThisQuestion = false) {
     <span class="progress-item progress-primary">復習${reviewRound}周目 ${reviewPosition}/${activeQuestions.length}問</span>
     <span class="progress-item">のこり${unresolvedQuestionKeys.size}問</span>
     <span class="progress-item">初回正解率${getInitialAccuracy()}％</span>
+    ${renderStreakChip()}
   `
 }
 
@@ -403,6 +432,7 @@ function renderQuestion() {
   nextBtn.disabled = true
   nextBtn.classList.add("hidden")
   restartBtn.classList.add("hidden")
+  reviewMissedBtn.classList.add("hidden")
   changeSettingsBtn.classList.add("hidden")
   updateProgress(false)
 
@@ -442,18 +472,25 @@ function selectChoice(selectedChoice) {
   if (reviewRound === 0) {
     if (isCorrect) {
       initialCorrectCount += 1
+      currentStreak += 1
+      bestStreak = Math.max(bestStreak, currentStreak)
       setMessage(`正解です。${item.explanation}`, { success: true })
       void playCorrectSound()
     } else {
+      currentStreak = 0
       unresolvedQuestionKeys.add(item.questionKey)
+      initialMissedQuestionKeys.add(item.questionKey)
       setMessage(`不正解です。正解は「${item.answer}」です。この問題はあとでもう一度出ます。${item.explanation}`, { error: true })
       void playIncorrectSound()
     }
   } else if (isCorrect) {
+    currentStreak += 1
+    bestStreak = Math.max(bestStreak, currentStreak)
     unresolvedQuestionKeys.delete(item.questionKey)
     setMessage(`正解です。これでこの問題はクリアです。${item.explanation}`, { success: true })
     void playCorrectSound()
   } else {
+    currentStreak = 0
     unresolvedQuestionKeys.add(item.questionKey)
     setMessage(`不正解です。正解は「${item.answer}」です。この問題はあとでもう一度出ます。${item.explanation}`, { error: true })
     void playIncorrectSound()
@@ -516,6 +553,18 @@ function getEraComment() {
   return `${eras[0]}から${eras[eras.length - 1]}までを復習できました。`
 }
 
+function buildCelebrationBlock(isPerfectFirstTry) {
+  const title = isPerfectFirstTry ? "💮 一発で全問クリア！ 💮" : "💮 ぜんぶクリア！ 💮"
+  const sub = isPerfectFirstTry ? "すばらしいです。まちがいゼロでした。" : "❌だった問題も最後まで解き切りました。"
+  return `
+    <div class="summary-celebration" role="status" aria-live="polite">
+      <div class="celebration-stamp">${title}</div>
+      <div class="celebration-sub">${sub}</div>
+      <div class="celebration-confetti" aria-hidden="true">🌸 ✨ 🌸 ✨ 🌸</div>
+    </div>
+  `
+}
+
 function showFinalScore() {
   const totalQuestions = selectedQuestions.length
   const accuracy = getInitialAccuracy()
@@ -526,6 +575,10 @@ function showFinalScore() {
   const masteryComment = initialWrongCount === 0
     ? "全問一発クリアです。"
     : "❌だった問題もすべてクリアしました。"
+  const missedQuestions = selectedQuestions.filter((item) => initialMissedQuestionKeys.has(item.questionKey))
+  const celebrationHtml = buildCelebrationBlock(initialWrongCount === 0)
+
+  lastQuizMissedQuestions = missedQuestions.map(cloneQuestion)
 
   modeEl.classList.add("hidden")
   eraEl.classList.add("hidden")
@@ -535,6 +588,7 @@ function showFinalScore() {
   clearProgress()
 
   summaryEl.innerHTML = `
+    ${celebrationHtml}
     <p class="summary-heading">総合結果</p>
     <p class="summary-score">${totalQuestions}問中 ${initialCorrectCount}問正解！</p>
     <p class="summary-subscore">初回正解率 ${accuracy}％</p>
@@ -551,6 +605,10 @@ function showFinalScore() {
         <span class="summary-label">復習周回</span>
         <span class="summary-value">${reviewRoundsLabel}</span>
       </div>
+      <div class="summary-item">
+        <span class="summary-label">最高連続正解</span>
+        <span class="summary-value">${bestStreak}問</span>
+      </div>
     </div>
     <p class="summary-comment">${comment}<br>${masteryComment}${getEraComment() ? `<br>${getEraComment()}` : ""}</p>
   `
@@ -559,6 +617,7 @@ function showFinalScore() {
   nextBtn.classList.add("hidden")
   restartBtn.classList.remove("hidden")
   changeSettingsBtn.classList.remove("hidden")
+  reviewMissedBtn.classList.toggle("hidden", !(sessionMode === "normal" && lastQuizMissedQuestions.length > 0))
   scrollElementIntoView(summaryEl)
 }
 
@@ -582,20 +641,41 @@ function advanceQuiz() {
   showFinalScore()
 }
 
-function startQuiz() {
-  if (allQuestions.length === 0) {
-    return
-  }
-
-  selectedQuestions = buildQuizFromSettings()
-  activeQuestions = selectedQuestions.map(createRuntimeQuestion)
+function resetQuizState() {
   currentIndex = 0
   initialCorrectCount = 0
   initialWrongCount = 0
   reviewRound = 0
   answered = false
   unresolvedQuestionKeys = new Set()
+  initialMissedQuestionKeys = new Set()
+  currentStreak = 0
+  bestStreak = 0
   clearSummary()
+}
+
+function startQuiz() {
+  if (allQuestions.length === 0) {
+    return
+  }
+
+  sessionMode = "normal"
+  selectedQuestions = buildQuizFromSettings()
+  activeQuestions = selectedQuestions.map(createRuntimeQuestion)
+  lastQuizMissedQuestions = []
+  resetQuizState()
+  renderQuestion()
+}
+
+function startMissedReviewQuiz() {
+  if (lastQuizMissedQuestions.length === 0) {
+    return
+  }
+
+  sessionMode = "review-missed"
+  selectedQuestions = lastQuizMissedQuestions.map(cloneQuestion)
+  activeQuestions = selectedQuestions.map(createRuntimeQuestion)
+  resetQuizState()
   renderQuestion()
 }
 
@@ -610,6 +690,7 @@ async function loadQuiz() {
     clearProgress()
     nextBtn.classList.add("hidden")
     restartBtn.classList.add("hidden")
+    reviewMissedBtn.classList.add("hidden")
     changeSettingsBtn.classList.add("hidden")
     questionCountEl.disabled = true
     randomModeEl.disabled = true
@@ -643,6 +724,7 @@ async function loadQuiz() {
     clearProgress()
     nextBtn.classList.add("hidden")
     restartBtn.classList.add("hidden")
+    reviewMissedBtn.classList.add("hidden")
     changeSettingsBtn.classList.add("hidden")
     questionCountEl.innerHTML = ""
     questionCountEl.disabled = true
@@ -661,6 +743,10 @@ nextBtn.addEventListener("click", () => {
 
 restartBtn.addEventListener("click", () => {
   startQuiz()
+})
+
+reviewMissedBtn.addEventListener("click", () => {
+  startMissedReviewQuiz()
 })
 
 changeSettingsBtn.addEventListener("click", () => {
