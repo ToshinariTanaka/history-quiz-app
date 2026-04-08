@@ -17,6 +17,7 @@ let quiz = [];
 let currentIndex = 0;
 let score = 0;
 let answered = false;
+let audioContext = null;
 
 function shuffle(array) {
   const copy = [...array];
@@ -44,6 +45,140 @@ function createRuntimeQuestion(item) {
     ...item,
     choices: shuffle([item.answer, ...(item.wrongChoices || [])])
   };
+}
+
+function getAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return null;
+  }
+
+  if (!audioContext) {
+    audioContext = new AudioContextClass();
+  }
+
+  return audioContext;
+}
+
+async function prepareAudio() {
+  const context = getAudioContext();
+  if (!context) {
+    return null;
+  }
+
+  if (context.state === "suspended") {
+    await context.resume();
+  }
+
+  return context;
+}
+
+function playTone(context, {
+  type = "sine",
+  frequency = 440,
+  startOffset = 0,
+  duration = 0.12,
+  volume = 0.18,
+  attack = 0.01,
+  release = 0.08,
+  endFrequency = frequency
+}) {
+  const oscillator = context.createOscillator();
+  const gainNode = context.createGain();
+  const now = context.currentTime;
+  const startTime = now + startOffset;
+  const stopTime = startTime + duration;
+
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, startTime);
+  oscillator.frequency.linearRampToValueAtTime(endFrequency, stopTime);
+
+  gainNode.gain.setValueAtTime(0.0001, startTime);
+  gainNode.gain.linearRampToValueAtTime(volume, startTime + attack);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, stopTime + release);
+
+  oscillator.connect(gainNode);
+  gainNode.connect(context.destination);
+
+  oscillator.start(startTime);
+  oscillator.stop(stopTime + release);
+}
+
+async function playCorrectSound() {
+  try {
+    const context = await prepareAudio();
+    if (!context) {
+      return;
+    }
+
+    playTone(context, {
+      type: "triangle",
+      frequency: 880,
+      endFrequency: 1040,
+      startOffset: 0,
+      duration: 0.12,
+      volume: 0.12,
+      attack: 0.01,
+      release: 0.1
+    });
+
+    playTone(context, {
+      type: "triangle",
+      frequency: 1175,
+      endFrequency: 1318,
+      startOffset: 0.11,
+      duration: 0.16,
+      volume: 0.14,
+      attack: 0.01,
+      release: 0.12
+    });
+
+    playTone(context, {
+      type: "sine",
+      frequency: 1568,
+      endFrequency: 1760,
+      startOffset: 0.22,
+      duration: 0.24,
+      volume: 0.1,
+      attack: 0.01,
+      release: 0.18
+    });
+  } catch (error) {
+    console.error("correct sound error", error);
+  }
+}
+
+async function playIncorrectSound() {
+  try {
+    const context = await prepareAudio();
+    if (!context) {
+      return;
+    }
+
+    playTone(context, {
+      type: "sawtooth",
+      frequency: 190,
+      endFrequency: 130,
+      startOffset: 0,
+      duration: 0.22,
+      volume: 0.13,
+      attack: 0.01,
+      release: 0.08
+    });
+
+    playTone(context, {
+      type: "square",
+      frequency: 145,
+      endFrequency: 105,
+      startOffset: 0.06,
+      duration: 0.28,
+      volume: 0.08,
+      attack: 0.01,
+      release: 0.1
+    });
+  } catch (error) {
+    console.error("incorrect sound error", error);
+  }
 }
 
 function populateQuestionCountOptions(totalQuestions) {
@@ -137,8 +272,10 @@ function selectChoice(selectedChoice) {
   if (selectedChoice === item.answer) {
     score += 1;
     setMessage(`正解です。${item.explanation}`, { success: true });
+    void playCorrectSound();
   } else {
     setMessage(`不正解です。正解は「${item.answer}」です。${item.explanation}`, { error: true });
+    void playIncorrectSound();
   }
 
   nextBtn.disabled = false;
