@@ -1,4 +1,5 @@
 const DATA_PATH = "quiz-data_rekishi3.json";
+const DEFAULT_QUESTION_COUNT = 10;
 
 const questionEl = document.getElementById("question");
 const choicesEl = document.getElementById("choices");
@@ -7,7 +8,11 @@ const progressEl = document.getElementById("progress");
 const nextBtn = document.getElementById("next");
 const restartBtn = document.getElementById("restart");
 const eraEl = document.getElementById("era");
+const questionCountEl = document.getElementById("question-count");
+const randomModeEl = document.getElementById("random-mode");
+const applySettingsBtn = document.getElementById("apply-settings");
 
+let allQuestions = [];
 let quiz = [];
 let currentIndex = 0;
 let score = 0;
@@ -41,9 +46,53 @@ function createRuntimeQuestion(item) {
   };
 }
 
+function populateQuestionCountOptions(totalQuestions) {
+  questionCountEl.innerHTML = "";
+
+  const presets = [10, 20, 30, 50, 100].filter((count) => count < totalQuestions);
+  const counts = [...presets, totalQuestions];
+
+  counts.forEach((count) => {
+    const option = document.createElement("option");
+    option.value = String(count);
+    option.textContent = count === totalQuestions ? `全部（${count}問）` : `${count}問`;
+    questionCountEl.appendChild(option);
+  });
+
+  const defaultCount = counts.includes(DEFAULT_QUESTION_COUNT)
+    ? DEFAULT_QUESTION_COUNT
+    : totalQuestions;
+
+  questionCountEl.value = String(defaultCount);
+  randomModeEl.checked = true;
+  questionCountEl.disabled = false;
+  randomModeEl.disabled = false;
+  applySettingsBtn.disabled = false;
+}
+
+function getSelectedQuestionCount() {
+  const selectedCount = Number.parseInt(questionCountEl.value, 10);
+  if (!Number.isFinite(selectedCount) || selectedCount <= 0) {
+    return Math.min(DEFAULT_QUESTION_COUNT, allQuestions.length);
+  }
+
+  return Math.min(selectedCount, allQuestions.length);
+}
+
+function buildQuizFromSettings() {
+  const shouldShuffleQuestions = randomModeEl.checked;
+  const questionCount = getSelectedQuestionCount();
+
+  const source = shouldShuffleQuestions ? shuffle(allQuestions) : [...allQuestions];
+  return source.slice(0, questionCount).map(createRuntimeQuestion);
+}
+
 function renderQuestion() {
   const item = quiz[currentIndex];
-  if (!item) return;
+  if (!item) {
+    showFinalScore();
+    return;
+  }
 
   answered = false;
   questionEl.textContent = item.question;
@@ -106,6 +155,17 @@ function showFinalScore() {
   restartBtn.classList.remove("hidden");
 }
 
+function startQuiz() {
+  if (allQuestions.length === 0) {
+    return;
+  }
+
+  quiz = buildQuizFromSettings();
+  currentIndex = 0;
+  score = 0;
+  renderQuestion();
+}
+
 async function loadQuiz() {
   try {
     questionEl.textContent = "問題を読み込み中…";
@@ -115,6 +175,9 @@ async function loadQuiz() {
     progressEl.textContent = "";
     nextBtn.classList.add("hidden");
     restartBtn.classList.add("hidden");
+    questionCountEl.disabled = true;
+    randomModeEl.disabled = true;
+    applySettingsBtn.disabled = true;
 
     const response = await fetch(DATA_PATH, { cache: "no-store" });
     if (!response.ok) {
@@ -126,10 +189,9 @@ async function loadQuiz() {
       throw new Error("出題できる問題が見つかりませんでした。");
     }
 
-    quiz = rawQuiz.map(createRuntimeQuestion);
-    currentIndex = 0;
-    score = 0;
-    renderQuestion();
+    allQuestions = rawQuiz;
+    populateQuestionCountOptions(allQuestions.length);
+    startQuiz();
   } catch (error) {
     eraEl.classList.add("hidden");
     questionEl.textContent = "読み込みエラー";
@@ -137,6 +199,10 @@ async function loadQuiz() {
     progressEl.textContent = "";
     nextBtn.classList.add("hidden");
     restartBtn.classList.add("hidden");
+    questionCountEl.innerHTML = "";
+    questionCountEl.disabled = true;
+    randomModeEl.disabled = true;
+    applySettingsBtn.disabled = true;
     setMessage(error.message || "問題データを読み込めませんでした。", { error: true });
   }
 }
@@ -151,15 +217,11 @@ nextBtn.addEventListener("click", () => {
 });
 
 restartBtn.addEventListener("click", () => {
-  if (quiz.length === 0) {
-    loadQuiz();
-    return;
-  }
+  startQuiz();
+});
 
-  currentIndex = 0;
-  score = 0;
-  quiz = shuffle(quiz).map(createRuntimeQuestion);
-  renderQuestion();
+applySettingsBtn.addEventListener("click", () => {
+  startQuiz();
 });
 
 loadQuiz();

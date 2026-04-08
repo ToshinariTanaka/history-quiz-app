@@ -12,6 +12,25 @@
     <h1>中学歴史4択クイズ</h1>
     <p class="subtitle">正しい選択肢を1つ選んでください。</p>
 
+    <section class="settings-card" aria-label="出題設定">
+      <div class="settings-grid">
+        <label class="setting-field" for="question-count">
+          <span class="setting-label">出題数</span>
+          <select id="question-count" class="setting-select" aria-label="出題数"></select>
+        </label>
+
+        <label class="setting-field" for="random-mode">
+          <span class="setting-label">出題順</span>
+          <span class="toggle-row">
+            <input id="random-mode" type="checkbox" checked />
+            <span>ランダムで出題する</span>
+          </span>
+        </label>
+      </div>
+
+      <button id="apply-settings" type="button">この設定で開始</button>
+    </section>
+
     <section class="quiz-card">
       <p id="era" class="era hidden" aria-live="polite"></p>
       <p id="question" aria-live="polite">問題を読み込み中…</p>
