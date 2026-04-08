@@ -42,6 +42,22 @@ function resetChoiceArea() {
   choicesEl.innerHTML = "";
 }
 
+function scrollElementIntoView(element) {
+  if (!element) {
+    return;
+  }
+
+  const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "auto"
+    : "smooth";
+
+  window.requestAnimationFrame(() => {
+    window.setTimeout(() => {
+      element.scrollIntoView({ behavior, block: "center" });
+    }, 120);
+  });
+}
+
 function stripAttachedReading(text) {
   if (typeof text !== "string" || text.length === 0) {
     return text;
@@ -352,6 +368,7 @@ function selectChoice(selectedChoice) {
 
   nextBtn.disabled = false;
   nextBtn.classList.remove("hidden");
+  scrollElementIntoView(nextBtn);
 }
 
 function showFinalScore() {
@@ -362,6 +379,7 @@ function showFinalScore() {
   progressEl.textContent = "";
   nextBtn.classList.add("hidden");
   restartBtn.classList.remove("hidden");
+  scrollElementIntoView(restartBtn);
 }
 
 function startQuiz() {
