@@ -310,6 +310,29 @@ function buildQuizFromSettings() {
   return source.slice(0, questionCount).map(createRuntimeQuestion);
 }
 
+function clearProgress() {
+  progressEl.innerHTML = "";
+}
+
+function updateProgress(questionNumber, totalQuestions, answeredCount) {
+  if (!Number.isFinite(totalQuestions) || totalQuestions <= 0) {
+    clearProgress();
+    return;
+  }
+
+  const safeQuestionNumber = Math.min(Math.max(questionNumber, 0), totalQuestions);
+  const safeAnsweredCount = Math.min(Math.max(answeredCount, 0), totalQuestions);
+  const accuracy = safeAnsweredCount === 0
+    ? null
+    : Math.round((score / safeAnsweredCount) * 100);
+
+  progressEl.innerHTML = `
+    <span class="progress-item progress-primary">${safeQuestionNumber}/${totalQuestions}問</span>
+    <span class="progress-item">${score}/${safeAnsweredCount}正解</span>
+    <span class="progress-item">${accuracy === null ? "正解率--" : `正解率${accuracy}％`}</span>
+  `;
+}
+
 function renderQuestion() {
   const item = quiz[currentIndex];
   if (!item) {
@@ -326,7 +349,7 @@ function renderQuestion() {
   nextBtn.disabled = true;
   nextBtn.classList.add("hidden");
   restartBtn.classList.add("hidden");
-  progressEl.textContent = `${currentIndex + 1} / ${quiz.length} 問`;
+  updateProgress(currentIndex + 1, quiz.length, currentIndex);
 
   resetChoiceArea();
 
@@ -366,6 +389,7 @@ function selectChoice(selectedChoice) {
     void playIncorrectSound();
   }
 
+  updateProgress(currentIndex + 1, quiz.length, currentIndex + 1);
   nextBtn.disabled = false;
   nextBtn.classList.remove("hidden");
   scrollElementIntoView(nextBtn);
@@ -376,7 +400,7 @@ function showFinalScore() {
   questionEl.textContent = "クイズ終了";
   resetChoiceArea();
   setMessage(`${quiz.length}問中 ${score}問正解でした。`, { success: true });
-  progressEl.textContent = "";
+  updateProgress(quiz.length, quiz.length, quiz.length);
   nextBtn.classList.add("hidden");
   restartBtn.classList.remove("hidden");
   scrollElementIntoView(restartBtn);
@@ -399,7 +423,7 @@ async function loadQuiz() {
     eraEl.classList.add("hidden");
     resetChoiceArea();
     setMessage("", { hidden: true });
-    progressEl.textContent = "";
+    clearProgress();
     nextBtn.classList.add("hidden");
     restartBtn.classList.add("hidden");
     questionCountEl.disabled = true;
@@ -429,7 +453,7 @@ async function loadQuiz() {
     eraEl.classList.add("hidden");
     questionEl.textContent = "読み込みエラー";
     resetChoiceArea();
-    progressEl.textContent = "";
+    clearProgress();
     nextBtn.classList.add("hidden");
     restartBtn.classList.add("hidden");
     questionCountEl.innerHTML = "";
