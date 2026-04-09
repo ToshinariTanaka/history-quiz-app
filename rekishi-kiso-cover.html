@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#2f6fb7" />
+  <title>中学歴史一問一答•基礎レベル</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body.cover-open {
+      overflow: hidden;
+    }
+
+    .brand {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #54708f;
+    }
+
+    .app-shell {
+      transition: opacity 0.28s ease;
+    }
+
+    body.cover-open .app-shell {
+      opacity: 0.35;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .cover-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding:
+        max(18px, env(safe-area-inset-top))
+        18px
+        max(18px, env(safe-area-inset-bottom));
+      background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 38%),
+        linear-gradient(180deg, #eaf2fb 0%, #dce9f8 100%);
+    }
+
+    .cover-screen.hidden {
+      display: none;
+    }
+
+    .cover-card {
+      width: min(100%, 560px);
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(216, 222, 233, 0.95);
+      border-radius: 28px;
+      padding: clamp(24px, 5vw, 34px);
+      box-shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
+      text-align: center;
+    }
+
+    .cover-school {
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      color: #58708d;
+    }
+
+    .cover-title {
+      margin: 0;
+      font-size: clamp(1.9rem, 6vw, 2.8rem);
+      line-height: 1.28;
+      color: #12385f;
+    }
+
+    .cover-image-wrap {
+      margin: clamp(18px, 4vw, 26px) auto 18px;
+      width: min(260px, 72vw);
+    }
+
+    .cover-image {
+      display: block;
+      width: 100%;
+      height: auto;
+      filter: drop-shadow(0 12px 22px rgba(47, 111, 183, 0.14));
+    }
+
+    .cover-copy {
+      margin: 0 0 20px;
+      font-size: 1rem;
+      line-height: 1.8;
+      font-weight: 700;
+      color: #475569;
+    }
+
+    .cover-start {
+      min-height: 60px;
+      font-size: 1.08rem;
+      font-weight: 800;
+    }
+
+    .cover-note {
+      margin: 14px 0 0;
+      font-size: 0.92rem;
+      line-height: 1.7;
+      color: #64748b;
+      font-weight: 700;
+    }
+
+    .main-subtitle {
+      margin: 0 0 24px;
+      font-size: clamp(1rem, 3.3vw, 1.15rem);
+      line-height: 1.7;
+      color: #475569;
+      font-weight: 700;
+    }
+
+    @media (max-width: 420px) {
+      .cover-card {
+        border-radius: 22px;
+        padding: 22px 18px;
+      }
+
+      .cover-school {
+        font-size: 0.88rem;
+      }
+
+      .cover-copy {
+        font-size: 0.95rem;
+      }
+
+      .cover-start {
+        min-height: 56px;
+      }
+    }
+  </style>
+</head>
+<body class="cover-open">
+  <div id="cover-screen" class="cover-screen" aria-label="表紙">
+    <section class="cover-card">
+      <p class="cover-school">個別指導Up塾</p>
+      <h1 class="cover-title">中学歴史一問一答•基礎レベル</h1>
+      <div class="cover-image-wrap">
+        <img
+          class="cover-image"
+          src="data:image/jpeg;base64,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"
+          alt="ヘッドホンをつけた緑色の先生キャラクター"
+        />
+      </div>
+      <p class="cover-copy">基礎事項をテンポよく確認できる、Up塾の歴史クイズです。</p>
+      <button id="cover-start" class="cover-start" type="button">スタート</button>
+      <p class="cover-note">スタート後に、出題数や出題モードを設定できます。</p>
+    </section>
+  </div>
+
+  <main id="app-shell" class="container app-shell" aria-hidden="true">
+    <p class="brand">個別指導Up塾</p>
+    <h1>中学歴史一問一答•基礎レベル</h1>
+    <p class="main-subtitle">正しい選択肢を1つ選んでください。</p>
+
+    <section class="settings-card" aria-label="出題設定">
+      <div class="settings-grid">
+        <label class="setting-field" for="question-count">
+          <span class="setting-label">出題数</span>
+          <select id="question-count" class="setting-select" aria-label="出題数"></select>
+        </label>
+
+        <label class="setting-field" for="range-mode">
+          <span class="setting-label">出題範囲</span>
+          <select id="range-mode" class="setting-select" aria-label="出題範囲"></select>
+        </label>
+
+        <label class="setting-field" for="practice-mode">
+          <span class="setting-label">出題モード</span>
+          <select id="practice-mode" class="setting-select" aria-label="出題モード"></select>
+        </label>
+
+        <label class="setting-field" for="correct-sound">
+          <span class="setting-label">正解音</span>
+          <select id="correct-sound" class="setting-select" aria-label="正解音"></select>
+        </label>
+
+        <label class="setting-field" for="random-mode">
+          <span class="setting-label">出題順</span>
+          <span class="toggle-row">
+            <input id="random-mode" type="checkbox" checked />
+            <span>ランダムで出題する</span>
+          </span>
+        </label>
+
+        <label id="start-era-field" class="setting-field hidden" for="start-era">
+          <span class="setting-label">時代指定</span>
+          <select id="start-era" class="setting-select" aria-label="時代指定"></select>
+        </label>
+      </div>
+
+      <div id="study-record" class="study-record hidden"></div>
+
+      <button id="apply-settings" type="button">この設定で開始</button>
+    </section>
+
+    <section class="quiz-card">
+      <p id="mode" class="mode hidden" aria-live="polite"></p>
+      <p id="era" class="era hidden" aria-live="polite"></p>
+      <p id="question" aria-live="polite">問題を読み込み中…</p>
+      <div id="choices" class="choices" role="list"></div>
+      <p id="result" class="result hidden" aria-live="polite"></p>
+      <div id="summary" class="summary hidden" aria-live="polite"></div>
+      <div id="progress" class="progress" aria-live="polite"></div>
+      <div class="actions">
+        <button id="next" type="button" class="secondary hidden" disabled>次の問題へ</button>
+        <button id="restart" type="button" class="secondary hidden">もう一度挑戦</button>
+        <button id="review-missed" type="button" class="secondary hidden">❌だけ復習</button>
+        <button id="change-settings" type="button" class="secondary hidden">設定を変える</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const coverScreen = document.getElementById("cover-screen");
+    const coverStartBtn = document.getElementById("cover-start");
+    const appShell = document.getElementById("app-shell");
+
+    function openApp() {
+      document.body.classList.remove("cover-open");
+      coverScreen.classList.add("hidden");
+      appShell.setAttribute("aria-hidden", "false");
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+
+    coverStartBtn.addEventListener("click", openApp);
+  </script>
+  <script src="script.js"></script>
+  <script src="start-era-fix.js"></script>
+  <script src="sound-settings.js"></script>
+</body>
+</html>
