@@ -23,6 +23,7 @@ const startEraEl = document.getElementById("start-era")
 const applySettingsBtn = document.getElementById("apply-settings")
 const studyRecordEl = document.getElementById("study-record")
 const settingsCardEl = document.querySelector(".settings-card")
+const quizCardEl = document.querySelector(".quiz-card")
 
 let allQuestions = []
 let selectedQuestions = []
@@ -107,6 +108,45 @@ function scrollElementIntoView(element) {
     window.setTimeout(() => {
       element.scrollIntoView({ behavior, block: "center" })
     }, 120)
+  })
+}
+
+function bounceQuizCard() {
+  if (!quizCardEl) {
+    return
+  }
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return
+  }
+
+  quizCardEl.classList.remove("quiz-bounce")
+  void quizCardEl.offsetWidth
+  quizCardEl.classList.add("quiz-bounce")
+  window.setTimeout(() => {
+    quizCardEl.classList.remove("quiz-bounce")
+  }, 700)
+}
+
+function scrollToFirstQuestionWithBounce() {
+  if (!quizCardEl) {
+    return
+  }
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  const behavior = reduceMotion ? "auto" : "smooth"
+
+  window.requestAnimationFrame(() => {
+    window.setTimeout(() => {
+      const top = quizCardEl.getBoundingClientRect().top + window.scrollY - 12
+      window.scrollTo({ top: Math.max(0, top), behavior })
+
+      if (!reduceMotion) {
+        window.setTimeout(() => {
+          bounceQuizCard()
+        }, 420)
+      }
+    }, 90)
   })
 }
 
@@ -1067,7 +1107,9 @@ function resetQuizState() {
   clearSummary()
 }
 
-function startQuiz() {
+function startQuiz(options = {}) {
+  const { scrollToQuestion = false } = options
+
   if (allQuestions.length === 0) {
     return
   }
@@ -1099,6 +1141,10 @@ function startQuiz() {
   lastQuizMissedQuestions = []
   resetQuizState()
   renderQuestion()
+
+  if (scrollToQuestion) {
+    scrollToFirstQuestionWithBounce()
+  }
 }
 
 function startMissedReviewQuiz() {
@@ -1210,7 +1256,7 @@ practiceModeEl.addEventListener("change", () => {
 })
 
 applySettingsBtn.addEventListener("click", () => {
-  startQuiz()
+  startQuiz({ scrollToQuestion: true })
 })
 
 loadQuiz()
