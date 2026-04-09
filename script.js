@@ -724,11 +724,15 @@ function refreshSettingOptions() {
   renderStudyRecord()
 }
 
-function updateStartEraVisibility() {
-  const hasEraOptions = startEraEl.options.length > 0
+function shouldUseStartEraFilter() {
   const isAllRange = !rangeModeEl.value || rangeModeEl.value === "all"
   const isNormalMode = !practiceModeEl.value || practiceModeEl.value === "normal"
-  const shouldShow = !randomModeEl.checked && isAllRange && isNormalMode && hasEraOptions
+  const hasEraOptions = startEraEl.options.length > 0
+  return isAllRange && isNormalMode && hasEraOptions && Boolean(startEraEl.value)
+}
+
+function updateStartEraVisibility() {
+  const shouldShow = shouldUseStartEraFilter() || ((!rangeModeEl.value || rangeModeEl.value === "all") && (!practiceModeEl.value || practiceModeEl.value === "normal") && startEraEl.options.length > 0)
   startEraFieldEl.classList.toggle("hidden", !shouldShow)
   startEraEl.disabled = !shouldShow
 }
@@ -744,7 +748,7 @@ function getSelectedQuestionCount() {
 }
 
 function getStartIndexForSelectedEra(sourceQuestions) {
-  if (randomModeEl.checked || sourceQuestions.length === 0) {
+  if (sourceQuestions.length === 0) {
     return 0
   }
 
@@ -761,11 +765,13 @@ function buildQuizFromSettings() {
   let source = applyPracticeModeToQuestions(getQuestionsForSelectedRange())
 
   if (practiceMode === "normal") {
-    if (shouldShuffleQuestions) {
-      source = shuffle(source)
-    } else {
+    if (shouldUseStartEraFilter()) {
       const startIndex = getStartIndexForSelectedEra(source)
       source = source.slice(startIndex)
+    }
+
+    if (shouldShuffleQuestions) {
+      source = shuffle(source)
     }
   }
 
