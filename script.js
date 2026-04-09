@@ -22,6 +22,9 @@ const startEraFieldEl = document.getElementById("start-era-field")
 const startEraEl = document.getElementById("start-era")
 const applySettingsBtn = document.getElementById("apply-settings")
 const studyRecordEl = document.getElementById("study-record")
+const studyRecordActionsEl = document.getElementById("study-record-actions")
+const clearLearningDataBtn = document.getElementById("clear-learning-data")
+const studyRecordMessageEl = document.getElementById("study-record-message")
 const settingsCardEl = document.querySelector(".settings-card")
 const quizCardEl = document.querySelector(".quiz-card")
 
@@ -508,6 +511,21 @@ function getRangeModeLabel(value) {
   return `${value}だけ`
 }
 
+function hasStoredLearningData() {
+  const practicedCount = Object.values(learningProfile.questions || {}).filter((record) => (record.totalSessionsSeen || 0) > 0).length
+  return practicedCount > 0 || Boolean(lastSessionResult)
+}
+
+function setStudyRecordMessage(message, options = {}) {
+  if (!studyRecordMessageEl) {
+    return
+  }
+
+  const { hidden = false } = options
+  studyRecordMessageEl.textContent = message
+  studyRecordMessageEl.classList.toggle("hidden", hidden)
+}
+
 function renderStudyRecord() {
   if (!studyRecordEl) {
     return
@@ -547,6 +565,31 @@ function renderStudyRecord() {
     <p class="study-record-note">前回学習: ${lastPlayed}<br>前回モード: ${lastMode}</p>
   `
   studyRecordEl.classList.remove("hidden")
+
+  if (studyRecordActionsEl && clearLearningDataBtn) {
+    const visible = hasStoredLearningData()
+    studyRecordActionsEl.classList.toggle("hidden", !visible)
+    clearLearningDataBtn.classList.toggle("hidden", !visible)
+  }
+}
+
+function clearStoredLearningData() {
+  const confirmed = window.confirm("保存済み学習データをクリアしますか？")
+  if (!confirmed) {
+    return
+  }
+
+  try {
+    window.localStorage.removeItem(STORAGE_PROFILE_KEY)
+    window.localStorage.removeItem(STORAGE_LAST_RESULT_KEY)
+    learningProfile = createDefaultLearningProfile()
+    lastSessionResult = null
+    renderStudyRecord()
+    setStudyRecordMessage("保存済み学習データをクリアしました。")
+  } catch (error) {
+    console.error("clear learning data error", error)
+    setStudyRecordMessage("学習データのクリアに失敗しました。")
+  }
 }
 
 function persistLearningData() {
@@ -1262,7 +1305,14 @@ practiceModeEl.addEventListener("change", () => {
 })
 
 applySettingsBtn.addEventListener("click", () => {
+  setStudyRecordMessage("", { hidden: true })
   startQuiz({ scrollToQuestion: true })
 })
+
+if (clearLearningDataBtn) {
+  clearLearningDataBtn.addEventListener("click", () => {
+    clearStoredLearningData()
+  })
+}
 
 loadQuiz()
