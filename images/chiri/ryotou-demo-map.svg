@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" role="img" aria-labelledby="title desc">
+  <title id="title">遼東半島の位置を問う試験用地図</title>
+  <desc id="desc">東アジアの簡略地図に、AからDの4つの候補位置を示している。遼東半島はA。</desc>
+  <rect width="960" height="560" fill="#e9f5ff"/>
+  <text x="40" y="56" font-size="34" font-weight="700" fill="#1f2a37">遼東半島は地図上のA〜Dのどれか</text>
+
+  <g fill="#f5efe2" stroke="#6f7f8f" stroke-width="4" stroke-linejoin="round">
+    <path d="M78 146
+             L130 118 L194 102 L268 94 L332 98 L388 118 L422 150 L446 182
+             L478 208 L530 220 L590 238 L652 254 L700 270 L736 294 L752 320
+             L742 350 L706 366 L652 360 L596 344 L560 326 L516 312 L476 314
+             L424 330 L370 340 L310 346 L250 336 L194 318 L146 294 L112 258
+             L92 222 Z"/>
+    <path d="M720 170
+             L752 166 L790 184 L818 214 L824 252 L810 286 L794 314 L802 344
+             L786 376 L756 394 L726 384 L712 356 L706 324 L692 290 L684 248 L690 214 Z"/>
+    <path d="M532 368 L596 382 L632 406 L602 424 L548 420 L514 396 Z"/>
+    <path d="M826 154 L862 162 L898 194 L904 228 L876 238 L846 214 L824 182 Z"/>
+    <path d="M844 292 L872 306 L888 336 L868 360 L838 350 L824 322 Z"/>
+  </g>
+
+  <g fill="#a7d3f5" opacity="0.55">
+    <ellipse cx="520" cy="305" rx="108" ry="72"/>
+    <ellipse cx="802" cy="252" rx="70" ry="110"/>
+  </g>
+
+  <g fill="#3f7fc1" font-size="22" font-weight="700">
+    <text x="418" y="292">渤海</text>
+    <text x="782" y="272">朝鮮半島</text>
+    <text x="560" y="454">山東半島</text>
+    <text x="192" y="392">中国大陸</text>
+  </g>
+
+  <g font-family="sans-serif" font-weight="800" text-anchor="middle">
+    <g>
+      <circle cx="610" cy="248" r="30" fill="#e85d5d" stroke="#ffffff" stroke-width="5"/>
+      <text x="610" y="258" font-size="28" fill="#ffffff">A</text>
+    </g>
+    <g>
+      <circle cx="630" cy="430" r="30" fill="#f1a43c" stroke="#ffffff" stroke-width="5"/>
+      <text x="630" y="440" font-size="28" fill="#ffffff">B</text>
+    </g>
+    <g>
+      <circle cx="786" cy="240" r="30" fill="#4aa3a2" stroke="#ffffff" stroke-width="5"/>
+      <text x="786" y="250" font-size="28" fill="#ffffff">C</text>
+    </g>
+    <g>
+      <circle cx="874" cy="196" r="30" fill="#7c6fd0" stroke="#ffffff" stroke-width="5"/>
+      <text x="874" y="206" font-size="28" fill="#ffffff">D</text>
+    </g>
+  </g>
+
+  <g fill="#1f2a37" font-size="20">
+    <text x="585" y="210">遼東半島</text>
+    <line x1="618" y1="214" x2="612" y2="228" stroke="#1f2a37" stroke-width="3"/>
+  </g>
+
+  <rect x="34" y="474" width="892" height="56" rx="16" fill="#ffffff" opacity="0.92"/>
+  <text x="56" y="510" font-size="22" fill="#334155">試作地図です。位置関係が分かることを優先した簡略図になっています。</text>
+</svg>
