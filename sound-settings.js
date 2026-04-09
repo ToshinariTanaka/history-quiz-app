@@ -1,5 +1,6 @@
 const CORRECT_SOUND_STORAGE_KEY = "historyQuizAppCorrectSound_v1"
 const DEFAULT_CORRECT_SOUND = "kirarin"
+const CORRECT_SOUND_VOLUME_MULTIPLIER = 1.35
 
 function getSavedCorrectSound() {
   try {
@@ -18,8 +19,17 @@ function saveCorrectSound(value) {
   }
 }
 
+function scaleCorrectSoundVolume(volume) {
+  return Math.min((volume ?? 0.1) * CORRECT_SOUND_VOLUME_MULTIPLIER, 0.24)
+}
+
 function playToneWithLightEcho(context, options, echoOptions = {}) {
-  playTone(context, options)
+  const baseVolume = scaleCorrectSoundVolume(options.volume)
+
+  playTone(context, {
+    ...options,
+    volume: baseVolume
+  })
 
   const {
     echoes = 2,
@@ -28,7 +38,7 @@ function playToneWithLightEcho(context, options, echoOptions = {}) {
     releaseBoost = 0.06
   } = echoOptions
 
-  let currentVolume = options.volume ?? 0.1
+  let currentVolume = baseVolume
   let currentDelay = delay
 
   for (let i = 0; i < echoes; i += 1) {
