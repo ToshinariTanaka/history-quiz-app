@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#2f6fb7" />
+  <title>画像つき問題レイアウト試作</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .demo-note {
+      margin: 0 0 18px;
+      color: #475569;
+      font-weight: 700;
+      line-height: 1.7;
+    }
+
+    .image-frame {
+      margin: 0 0 18px;
+    }
+
+    .image-button {
+      display: block;
+      width: 100%;
+      padding: 0;
+      min-height: 0;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      background: #ffffff;
+      cursor: zoom-in;
+    }
+
+    .image-button img {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #f8fafc;
+    }
+
+    .image-hint {
+      margin-top: 10px;
+      color: #64748b;
+      font-size: 0.92rem;
+      font-weight: 700;
+      line-height: 1.6;
+    }
+
+    .image-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(15, 23, 42, 0.86);
+      display: flex;
+      flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+    }
+
+    .image-modal.hidden {
+      display: none;
+    }
+
+    .image-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      color: #ffffff;
+      margin-bottom: 10px;
+    }
+
+    .image-modal-title {
+      font-size: 1rem;
+      font-weight: 800;
+      line-height: 1.4;
+    }
+
+    .image-modal-controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .image-modal-btn {
+      width: auto;
+      min-height: 42px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 800;
+      backdrop-filter: blur(6px);
+    }
+
+    .image-modal-btn:hover {
+      background: rgba(255, 255, 255, 0.28);
+    }
+
+    .image-stage {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.06);
+      touch-action: none;
+    }
+
+    .image-stage img {
+      max-width: 100%;
+      max-height: 100%;
+      user-select: none;
+      -webkit-user-drag: none;
+      transform-origin: center center;
+      will-change: transform;
+      cursor: grab;
+    }
+
+    .image-stage img.dragging {
+      cursor: grabbing;
+    }
+
+    .image-modal-note {
+      margin-top: 10px;
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 0.9rem;
+      font-weight: 700;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    .actions.demo-actions {
+      margin-top: 22px;
+    }
+
+    @media (max-width: 700px) {
+      .image-modal-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>画像つき問題レイアウト試作</h1>
+    <p class="demo-note">本体はまだ変更していません。今の一問一答アプリに近い見た目で、画像を問題文の上に入れた別ファイルの試作です。</p>
+
+    <section class="quiz-card">
+      <p class="mode">画像つき問題 試作</p>
+      <p class="era">地理</p>
+
+      <div class="image-frame">
+        <button id="open-image" type="button" class="image-button" aria-label="地図画像を拡大表示">
+          <img src="images/chiri/ryotou-demo-map.svg" alt="東アジアの簡略地図。AからDの候補位置が示されている。" />
+        </button>
+        <p class="image-hint">画像をタップ、または上にスワイプすると拡大表示できます。</p>
+      </div>
+
+      <p id="question">遼東半島は地図上のA〜Dのどれか。</p>
+
+      <div id="choices" class="choices" role="list">
+        <button type="button" class="choice-btn" data-choice="A" role="listitem">A</button>
+        <button type="button" class="choice-btn" data-choice="B" role="listitem">B</button>
+        <button type="button" class="choice-btn" data-choice="C" role="listitem">C</button>
+        <button type="button" class="choice-btn" data-choice="D" role="listitem">D</button>
+      </div>
+
+      <p id="result" class="result hidden" aria-live="polite"></p>
+      <div id="progress" class="progress" aria-live="polite">
+        <span class="progress-item progress-primary">1/1問</span>
+        <span class="progress-item">0/0正解</span>
+        <span class="progress-item">正解率--</span>
+        <span class="progress-item">連続正解0</span>
+      </div>
+
+      <div class="actions demo-actions">
+        <button id="restart" type="button" class="secondary">もう一度試す</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="image-modal" class="image-modal hidden" aria-hidden="true">
+    <div class="image-modal-header">
+      <div class="image-modal-title">遼東半島の位置図</div>
+      <div class="image-modal-controls">
+        <button type="button" class="image-modal-btn" id="zoom-in">拡大</button>
+        <button type="button" class="image-modal-btn" id="zoom-reset">元に戻す</button>
+        <button type="button" class="image-modal-btn" id="close-image">閉じる</button>
+      </div>
+    </div>
+    <div id="image-stage" class="image-stage">
+      <img id="modal-image" src="images/chiri/ryotou-demo-map.svg" alt="東アジアの簡略地図。AからDの候補位置が示されている。" />
+    </div>
+    <div class="image-modal-note">ダブルタップで拡大率を切り替えられます。拡大後は指でドラッグして位置を動かせます。</div>
+  </div>
+
+  <script>
+    const answer = "A";
+    const choices = Array.from(document.querySelectorAll(".choice-btn"));
+    const resultEl = document.getElementById("result");
+    const restartBtn = document.getElementById("restart");
+    const progressEl = document.getElementById("progress");
+
+    const openImageBtn = document.getElementById("open-image");
+    const imageModal = document.getElementById("image-modal");
+    const closeImageBtn = document.getElementById("close-image");
+    const zoomInBtn = document.getElementById("zoom-in");
+    const zoomResetBtn = document.getElementById("zoom-reset");
+    const imageStage = document.getElementById("image-stage");
+    const modalImage = document.getElementById("modal-image");
+
+    let correctCount = 0;
+    let answeredCount = 0;
+    let currentStreak = 0;
+
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let dragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let startTranslateX = 0;
+    let startTranslateY = 0;
+    let tapStartY = null;
+    let lastTapAt = 0;
+
+    function updateProgress() {
+      const accuracy = answeredCount === 0 ? "--" : `${Math.round((correctCount / answeredCount) * 100)}％`;
+      progressEl.innerHTML = `
+        <span class="progress-item progress-primary">1/1問</span>
+        <span class="progress-item">${correctCount}/${answeredCount}正解</span>
+        <span class="progress-item">正解率${accuracy}</span>
+        <span class="progress-item">連続正解${currentStreak}</span>
+      `;
+    }
+
+    function resetQuestion() {
+      correctCount = 0;
+      answeredCount = 0;
+      currentStreak = 0;
+      resultEl.textContent = "";
+      resultEl.className = "result hidden";
+      choices.forEach((button) => {
+        button.disabled = false;
+        button.classList.remove("correct", "incorrect");
+      });
+      updateProgress();
+    }
+
+    function showResult(isCorrect) {
+      answeredCount = 1;
+      if (isCorrect) {
+        correctCount = 1;
+        currentStreak = 1;
+        resultEl.textContent = "正解です。遼東半島はAです。";
+        resultEl.className = "result success";
+      } else {
+        correctCount = 0;
+        currentStreak = 0;
+        resultEl.textContent = "不正解です。正解はAです。遼東半島は中国東北部の半島です。";
+        resultEl.className = "result error";
+      }
+      updateProgress();
+    }
+
+    choices.forEach((button) => {
+      button.addEventListener("click", () => {
+        const selected = button.dataset.choice;
+        const isCorrect = selected === answer;
+
+        choices.forEach((item) => {
+          item.disabled = true;
+          if (item.dataset.choice === answer) {
+            item.classList.add("correct");
+          } else if (item.dataset.choice === selected) {
+            item.classList.add("incorrect");
+          }
+        });
+
+        showResult(isCorrect);
+      });
+    });
+
+    restartBtn.addEventListener("click", resetQuestion);
+
+    function applyViewerTransform() {
+      modalImage.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    }
+
+    function resetViewerTransform() {
+      scale = 1;
+      translateX = 0;
+      translateY = 0;
+      applyViewerTransform();
+    }
+
+    function toggleViewerZoom() {
+      if (scale > 1) {
+        resetViewerTransform();
+      } else {
+        scale = 2;
+        applyViewerTransform();
+      }
+    }
+
+    function openViewer() {
+      imageModal.classList.remove("hidden");
+      imageModal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      resetViewerTransform();
+    }
+
+    function closeViewer() {
+      imageModal.classList.add("hidden");
+      imageModal.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+      resetViewerTransform();
+    }
+
+    openImageBtn.addEventListener("click", openViewer);
+    closeImageBtn.addEventListener("click", closeViewer);
+    zoomInBtn.addEventListener("click", () => {
+      scale = Math.min(scale + 0.5, 3);
+      applyViewerTransform();
+    });
+    zoomResetBtn.addEventListener("click", resetViewerTransform);
+
+    imageModal.addEventListener("click", (event) => {
+      if (event.target === imageModal) {
+        closeViewer();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !imageModal.classList.contains("hidden")) {
+        closeViewer();
+      }
+    });
+
+    openImageBtn.addEventListener("touchstart", (event) => {
+      tapStartY = event.touches[0].clientY;
+    }, { passive: true });
+
+    openImageBtn.addEventListener("touchend", (event) => {
+      if (tapStartY === null) {
+        return;
+      }
+      const endY = event.changedTouches[0].clientY;
+      if (tapStartY - endY > 28) {
+        openViewer();
+      }
+      tapStartY = null;
+    }, { passive: true });
+
+    function pointerDown(clientX, clientY) {
+      if (scale <= 1) {
+        return;
+      }
+      dragging = true;
+      dragStartX = clientX;
+      dragStartY = clientY;
+      startTranslateX = translateX;
+      startTranslateY = translateY;
+      modalImage.classList.add("dragging");
+    }
+
+    function pointerMove(clientX, clientY) {
+      if (!dragging) {
+        return;
+      }
+      translateX = startTranslateX + (clientX - dragStartX);
+      translateY = startTranslateY + (clientY - dragStartY);
+      applyViewerTransform();
+    }
+
+    function pointerUp() {
+      dragging = false;
+      modalImage.classList.remove("dragging");
+    }
+
+    imageStage.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      pointerDown(event.clientX, event.clientY);
+    });
+
+    window.addEventListener("mousemove", (event) => {
+      pointerMove(event.clientX, event.clientY);
+    });
+
+    window.addEventListener("mouseup", pointerUp);
+
+    imageStage.addEventListener("touchstart", (event) => {
+      const now = Date.now();
+      if (now - lastTapAt < 260) {
+        toggleViewerZoom();
+        lastTapAt = 0;
+        return;
+      }
+      lastTapAt = now;
+      const touch = event.touches[0];
+      pointerDown(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    imageStage.addEventListener("touchmove", (event) => {
+      if (!dragging) {
+        return;
+      }
+      const touch = event.touches[0];
+      pointerMove(touch.clientX, touch.clientY);
+      event.preventDefault();
+    }, { passive: false });
+
+    imageStage.addEventListener("touchend", pointerUp);
+    imageStage.addEventListener("dblclick", toggleViewerZoom);
+
+    updateProgress();
+  </script>
+</body>
+</html>
