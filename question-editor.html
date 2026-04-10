@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#2f6fb7" />
+  <title>問題編集ツール | 個別指導Up塾</title>
+  <link rel="stylesheet" href="question-editor.css" />
+  <script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script defer src="question-editor.js"></script>
+</head>
+<body>
+  <main class="editor-shell">
+    <header class="page-header">
+      <p class="eyebrow">個別指導Up塾</p>
+      <h1>一問一答アプリ 問題編集ツール</h1>
+      <p class="lead">
+        Excel を取り込み、問題を点検し、JSON と Excel を書き出すための管理ページです。<br />
+        並べ替えは Excel の行順をそのまま使います。
+      </p>
+    </header>
+
+    <section class="card rules-card">
+      <h2>入力ルール v1</h2>
+      <div class="rules-grid">
+        <div>
+          <h3>基本</h3>
+          <ul>
+            <li>並べ替えは Excel 側で行う</li>
+            <li>1 行 = 1 問</li>
+            <li>id は識別用。順番は行順優先</li>
+            <li>本番 JSON にはこの記法のまま保存</li>
+          </ul>
+        </div>
+        <div>
+          <h3>数式・化学式</h3>
+          <ul>
+            <li>下付き: <code>H_2O</code>, <code>a_{n+1}</code></li>
+            <li>上付き: <code>x^2</code>, <code>Cu^{2+}</code></li>
+            <li>分数: <code>1/2</code>, <code>frac(a+b,c+d)</code></li>
+            <li>平方根: <code>sqrt(2)</code></li>
+            <li>総和: <code>sum_{k=1}^{n} a_k</code></li>
+            <li>積分: <code>int_{0}^{1} x^2 dx</code></li>
+            <li>ベクトル: <code>vec(AB)</code></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card control-card">
+      <div class="toolbar-grid">
+        <div class="tool-group">
+          <label class="file-label">
+            <span>Excel / CSV を取り込む</span>
+            <input id="import-file" type="file" accept=".xlsx,.xls,.csv" />
+          </label>
+          <button id="load-current-json" type="button">現在の JSON を読み込む</button>
+          <button id="download-template" type="button" class="secondary">Excel テンプレートを出力</button>
+        </div>
+
+        <div class="tool-group">
+          <button id="add-row" type="button">新しい問題を追加</button>
+          <button id="validate-data" type="button" class="secondary">入力チェック</button>
+          <button id="normalize-ids" type="button" class="secondary">空の id を自動採番</button>
+        </div>
+
+        <div class="tool-group">
+          <button id="export-json" type="button">JSON を出力</button>
+          <button id="export-excel" type="button" class="secondary">Excel を出力</button>
+          <button id="copy-json" type="button" class="secondary">JSON をコピー</button>
+        </div>
+      </div>
+
+      <div class="meta-row">
+        <div class="meta-chip">問題数: <strong id="question-count">0</strong></div>
+        <div class="meta-chip">読込元: <strong id="source-label">未読込</strong></div>
+      </div>
+      <p id="status-message" class="status-message" aria-live="polite"></p>
+    </section>
+
+    <section class="card table-card">
+      <div class="table-scroll">
+        <table class="editor-table">
+          <thead>
+            <tr>
+              <th>id</th>
+              <th>era</th>
+              <th>question</th>
+              <th>answer</th>
+              <th>wrong1</th>
+              <th>wrong2</th>
+              <th>wrong3</th>
+              <th>explanation</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="editor-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="preview-grid">
+      <section class="card preview-card">
+        <h2>表示プレビュー</h2>
+        <div id="preview-area" class="preview-area">
+          <p class="preview-empty">行を選ぶと、質問と選択肢の見え方をここで確認できます。</p>
+        </div>
+      </section>
+
+      <section class="card preview-card">
+        <h2>JSON 出力</h2>
+        <textarea id="json-output" class="json-output" spellcheck="false" placeholder="ここに JSON が表示されます。"></textarea>
+      </section>
+    </section>
+
+    <section class="card validation-card">
+      <h2>入力チェック結果</h2>
+      <div id="validation-output" class="validation-output">
+        <p class="validation-empty">まだチェックしていません。</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
