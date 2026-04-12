@@ -5,118 +5,283 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#2f6fb7" />
   <title>中学歴史一問一答•基礎レベル</title>
-  <style>
-    :root {
-      --bg: #eef4fb;
-      --card: rgba(255, 255, 255, 0.95);
-      --text: #12385f;
-      --sub: #5d718a;
-      --accent: #2f6fb7;
-      --border: #d8dee9;
-    }
+<style>
+  :root {
+    --bg-top: #f7f8fc;
+    --bg-bottom: #e4e7f0;
+    --panel-outer: #bcc4d5;
+    --panel-mid: #eef2f8;
+    --panel-inner: #ffffff;
+    --text-main: #143a73;
+    --text-sub: #51627e;
+    --navy-deep: #123470;
+    --blue-1: #6fb5ff;
+    --blue-2: #2b73dc;
+    --blue-3: #1b4da8;
+    --blue-4: #0f2f72;
+  }
 
-    * {
-      box-sizing: border-box;
-    }
+  * {
+    box-sizing: border-box;
+  }
 
-    body {
-      margin: 0;
-      min-height: 100svh;
-      display: grid;
-      place-items: center;
-      padding:
-        max(18px, env(safe-area-inset-top))
-        18px
-        max(18px, env(safe-area-inset-bottom));
-      font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", sans-serif;
-      background:
-        radial-gradient(circle at top, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0) 38%),
-        linear-gradient(180deg, var(--bg) 0%, #dde8f7 100%);
-      color: var(--text);
-    }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
+  body {
+    margin: 0;
+    min-height: 100svh;
+    display: grid;
+    place-items: center;
+    padding:
+      max(18px, env(safe-area-inset-top))
+      14px
+      max(18px, env(safe-area-inset-bottom));
+    font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: var(--text-main);
+    background:
+      radial-gradient(circle at top, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0) 34%),
+      linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.22;
+    background:
+      repeating-linear-gradient(
+        45deg,
+        rgba(120, 130, 155, 0.04) 0px,
+        rgba(120, 130, 155, 0.04) 2px,
+        transparent 2px,
+        transparent 8px
+      ),
+      repeating-linear-gradient(
+        -45deg,
+        rgba(120, 130, 155, 0.03) 0px,
+        rgba(120, 130, 155, 0.03) 2px,
+        transparent 2px,
+        transparent 10px
+      );
+  }
+
+  .cover-card {
+    width: min(100%, 620px);
+    position: relative;
+    text-align: center;
+    border-radius: 38px;
+    padding: clamp(24px, 5vw, 40px) clamp(18px, 4vw, 34px);
+    background:
+      linear-gradient(145deg, rgba(255,255,255,0.95), rgba(239,243,249,0.95));
+    border: 3px solid rgba(161, 170, 188, 0.72);
+    box-shadow:
+      0 0 0 2px rgba(255,255,255,0.95) inset,
+      0 0 0 8px rgba(199, 206, 220, 0.52) inset,
+      0 0 0 12px rgba(255,255,255,0.72) inset,
+      0 16px 36px rgba(40, 58, 98, 0.14);
+  }
+
+  .cover-card::before {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    border-radius: 30px;
+    border: 2px solid rgba(146, 158, 184, 0.52);
+    pointer-events: none;
+  }
+
+  .cover-card::after {
+    content: "";
+    position: absolute;
+    inset: 18px;
+    border-radius: 24px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.95) inset,
+      0 -2px 8px rgba(127, 138, 165, 0.12) inset;
+    pointer-events: none;
+  }
+
+  .cover-school {
+    margin: 4px 0 12px;
+    font-size: clamp(1rem, 2.8vw, 1.35rem);
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: #254675;
+  }
+
+  .cover-title {
+    margin: 0;
+    font-size: clamp(2.7rem, 9vw, 5rem);
+    line-height: 1.08;
+    letter-spacing: 0.01em;
+    font-weight: 900;
+    color: var(--navy-deep);
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.9),
+      0 2px 10px rgba(27, 59, 116, 0.08);
+  }
+
+  .cover-image-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 26px 0 24px;
+  }
+
+  .cover-image-ring {
+    position: relative;
+    width: min(250px, 58vw);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    padding: 10px;
+    background:
+      linear-gradient(145deg, #fefefe 0%, #d3d8e3 16%, #ffffff 30%, #a8b2c4 52%, #f9fbff 72%, #c9d1df 86%, #f7f9fd 100%);
+    box-shadow:
+      0 0 0 2px rgba(255,255,255,0.95) inset,
+      0 0 0 7px rgba(193, 200, 214, 0.55) inset,
+      0 8px 20px rgba(41, 57, 91, 0.16);
+  }
+
+  .cover-image-ring::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.9);
+    pointer-events: none;
+  }
+
+  .cover-image-ring::after {
+    content: "";
+    position: absolute;
+    left: 7%;
+    top: 8%;
+    width: 36%;
+    height: 18%;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.08));
+    transform: rotate(-28deg);
+    pointer-events: none;
+    filter: blur(0.4px);
+  }
+
+  .cover-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.75);
+  }
+
+  .cover-copy {
+    margin: 0 0 22px;
+    font-size: clamp(1.08rem, 3vw, 1.32rem);
+    line-height: 1.8;
+    font-weight: 800;
+    color: #263b61;
+  }
+
+  .cover-start {
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 78px;
+    padding: 18px 20px;
+    border-radius: 999px;
+    border: 3px solid #162a59;
+    text-decoration: none;
+    color: #ffffff;
+    font-size: clamp(1.35rem, 4.8vw, 1.9rem);
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    background:
+      linear-gradient(180deg, var(--blue-1) 0%, var(--blue-2) 28%, var(--blue-3) 58%, var(--blue-4) 100%);
+    box-shadow:
+      0 2px 0 rgba(255,255,255,0.72) inset,
+      0 -3px 0 rgba(9, 18, 52, 0.48) inset,
+      0 0 0 2px rgba(209, 217, 232, 0.78),
+      0 8px 18px rgba(19, 44, 92, 0.24);
+    text-shadow: 0 2px 6px rgba(0,0,0,0.36);
+  }
+
+  .cover-start::before {
+    content: "";
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    top: 8%;
+    height: 38%;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.14));
+    pointer-events: none;
+  }
+
+  .cover-start::after {
+    content: "";
+    position: absolute;
+    right: 8%;
+    top: 14%;
+    width: 26%;
+    height: 52%;
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 24% 50%, rgba(255,255,255,0.92) 0 3px, transparent 4px),
+      radial-gradient(circle at 42% 44%, rgba(255,255,255,0.72) 0 2px, transparent 3px),
+      radial-gradient(circle at 60% 52%, rgba(255,255,255,0.78) 0 2px, transparent 3px),
+      linear-gradient(135deg, rgba(255,255,255,0.45), rgba(255,255,255,0));
+    transform: skewX(-16deg);
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  .cover-note {
+    margin: 18px 0 0;
+    font-size: clamp(1rem, 2.9vw, 1.18rem);
+    line-height: 1.75;
+    font-weight: 800;
+    color: #334765;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .cover-start:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+    }
+  }
+
+  @media (max-width: 420px) {
     .cover-card {
-      width: min(100%, 560px);
-      background: var(--card);
-      border: 1px solid var(--border);
       border-radius: 28px;
-      padding: clamp(22px, 5vw, 34px);
-      box-shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
-      text-align: center;
+      padding: 22px 14px 24px;
     }
 
-    .cover-school {
-      margin: 0 0 10px;
-      font-size: 0.95rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      color: var(--sub);
+    .cover-card::before {
+      inset: 8px;
+      border-radius: 22px;
     }
 
-    .cover-title {
-      margin: 0;
-      font-size: clamp(2.5rem, 8.4vw, 4rem);
-      line-height: 1.16;
-      letter-spacing: 0.01em;
+    .cover-card::after {
+      inset: 14px;
+      border-radius: 18px;
     }
 
-    .cover-image {
-      display: block;
-      width: min(140px, 34vw);
-      height: auto;
-      margin: 20px auto 18px;
-      border-radius: 50%;
-      box-shadow: 0 12px 22px rgba(47, 111, 183, 0.14);
-    }
-
-    .cover-copy {
-      margin: 0 0 18px;
-      font-size: 1rem;
-      line-height: 1.8;
-      font-weight: 700;
-      color: #475569;
+    .cover-image-ring {
+      width: min(220px, 56vw);
     }
 
     .cover-start {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      min-height: 60px;
-      padding: 16px 18px;
-      border: none;
-      border-radius: 16px;
-      background: var(--accent);
-      color: #fff;
-      text-decoration: none;
-      font-size: 1.08rem;
-      font-weight: 800;
-      box-shadow: 0 10px 22px rgba(47, 111, 183, 0.18);
+      min-height: 72px;
     }
-
-    .cover-note {
-      margin: 14px 0 0;
-      font-size: 0.92rem;
-      line-height: 1.7;
-      color: #64748b;
-      font-weight: 700;
-    }
-
-    @media (max-width: 420px) {
-      .cover-card {
-        border-radius: 22px;
-        padding: 20px 18px;
-      }
-
-      .cover-title {
-        font-size: clamp(2.2rem, 9vw, 3.3rem);
-      }
-
-      .cover-image {
-        width: min(120px, 32vw);
-      }
-    }
-  </style>
+  }
+</style>
 </head>
 <body>
   <main class="cover-card">
