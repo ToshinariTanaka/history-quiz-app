@@ -147,29 +147,6 @@
       0 8px 20px rgba(41, 57, 91, 0.16);
   }
 
-  .cover-image-ring::before {
-    content: "";
-    position: absolute;
-    inset: 8px;
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.9);
-    pointer-events: none;
-  }
-
-  .cover-image-ring::after {
-    content: "";
-    position: absolute;
-    left: 7%;
-    top: 8%;
-    width: 36%;
-    height: 18%;
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.08));
-    transform: rotate(-28deg);
-    pointer-events: none;
-    filter: blur(0.4px);
-  }
-
 .cover-image {
   display: block;
   width: min(320px, 72vw);
