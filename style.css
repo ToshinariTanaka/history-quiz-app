@@ -351,33 +351,6 @@ button::before {
   pointer-events: none;
 }
 
-.choice-btn::after,
-button::after {
-  content: "";
-  position: absolute;
-  right: 8%;
-  top: 14%;
-  width: 24%;
-  height: 52%;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 24% 50%, rgba(255,255,255,0.92) 0 3px, transparent 4px),
-    radial-gradient(circle at 44% 42%, rgba(255,255,255,0.74) 0 2px, transparent 3px),
-    radial-gradient(circle at 62% 54%, rgba(255,255,255,0.82) 0 2px, transparent 3px),
-    linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0));
-  transform: skewX(-16deg);
-  opacity: 0.9;
-  pointer-events: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .choice-btn:hover,
-  button:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.03);
-  }
-}
-
 .choice-btn:disabled,
 button:disabled {
   opacity: 0.7;
