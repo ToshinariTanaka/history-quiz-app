@@ -8,6 +8,12 @@ const choicesEl = document.getElementById("choices")
 const resultEl = document.getElementById("result")
 const summaryEl = document.getElementById("summary")
 const progressEl = document.getElementById("progress")
+
+const scoreDisplayEl = document.getElementById("score-display")
+const comboDisplayEl = document.getElementById("combo-display")
+const lifeDisplayEl = document.getElementById("life-display")
+const scoreEffectEl = document.getElementById("score-effect")
+
 const nextBtn = document.getElementById("next")
 const restartBtn = document.getElementById("restart")
 const reviewMissedBtn = document.getElementById("review-missed")
@@ -41,6 +47,12 @@ let initialMissedQuestionKeys = new Set()
 let lastQuizMissedQuestions = []
 let currentStreak = 0
 let bestStreak = 0
+
+let score = 0
+let combo = 0
+let life = 3
+const MAX_LIFE = 5
+
 let sessionMode = "normal"
 let audioContext = null
 let questionStats = new Map()
