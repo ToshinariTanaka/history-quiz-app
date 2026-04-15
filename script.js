@@ -837,6 +837,79 @@ function clearProgress() {
   progressEl.innerHTML = ""
 }
 
+function getLifeIcons() {
+  return "❤️".repeat(Math.max(0, life))
+}
+
+function updateGameStatus() {
+  if (scoreDisplayEl) {
+    scoreDisplayEl.textContent = `スコア：${score}`
+  }
+
+  if (comboDisplayEl) {
+    comboDisplayEl.textContent = `コンボ：${combo}`
+  }
+
+  if (lifeDisplayEl) {
+    lifeDisplayEl.textContent = `ライフ：${getLifeIcons()}`
+  }
+}
+
+function showScoreEffect(message) {
+  if (!scoreEffectEl) {
+    return
+  }
+
+  scoreEffectEl.textContent = message
+  scoreEffectEl.classList.remove("hidden")
+}
+
+function clearScoreEffect() {
+  if (!scoreEffectEl) {
+    return
+  }
+
+  scoreEffectEl.textContent = ""
+  scoreEffectEl.classList.add("hidden")
+}
+
+function handleCorrectGameLogic() {
+  combo += 1
+  currentStreak = combo
+  bestStreak = Math.max(bestStreak, combo)
+
+  const gained = combo
+  score += gained
+
+  if (combo % 10 === 0) {
+    if (life < MAX_LIFE) {
+      life += 1
+      showScoreEffect(`+${gained}点！ ${combo}コンボ！ ライフ+1`)
+    } else {
+      showScoreEffect(`+${gained}点！ ${combo}コンボ！`)
+    }
+  } else {
+    showScoreEffect(`+${gained}点！ ${combo}コンボ！`)
+  }
+
+  updateGameStatus()
+}
+
+function handleWrongGameLogic() {
+  life -= 1
+  currentStreak = 0
+
+  if (life <= 0) {
+    combo = 0
+    life = 3
+    showScoreEffect("ライフ0！ コンボリセット！")
+  } else {
+    showScoreEffect(`ミス！ ライフ-${1}`)
+  }
+
+  updateGameStatus()
+}
+
 function renderStreakChip() {
   if (currentStreak <= 0) {
     return '<span class="progress-item">連続正解0</span>'
@@ -932,6 +1005,10 @@ function renderQuestion() {
   eraEl.classList.toggle("hidden", !item.era)
 
   setMessage("", { hidden: true })
+
+  clearScoreEffect()
+  updateGameStatus()
+  
   nextBtn.disabled = true
   nextBtn.classList.add("hidden")
   restartBtn.classList.add("hidden")
@@ -1165,7 +1242,14 @@ function resetQuizState() {
   initialMissedQuestionKeys = new Set()
   currentStreak = 0
   bestStreak = 0
+
+  score = 0
+  combo = 0
+  life = 3
+
   clearSummary()
+  clearScoreEffect()
+  updateGameStatus()
 }
 
 function startQuiz(options = {}) {
