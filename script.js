@@ -1053,31 +1053,28 @@ function selectChoice(selectedChoice) {
 
   if (reviewRound === 0) {
     if (isCorrect) {
-      initialCorrectCount += 1
-      currentStreak += 1
-      bestStreak = Math.max(bestStreak, currentStreak)
-      setMessage(`正解です。${item.explanation}`, { success: true })
-      void playCorrectSound()
-    } else {
-      currentStreak = 0
-      unresolvedQuestionKeys.add(item.questionKey)
-      initialMissedQuestionKeys.add(item.questionKey)
-      setMessage(`不正解です。正解は「${item.answer}」です。この問題はあとでもう一度出ます。${item.explanation}`, { error: true })
-      void playIncorrectSound()
-    }
-  } else if (isCorrect) {
-    currentStreak += 1
-    bestStreak = Math.max(bestStreak, currentStreak)
-    unresolvedQuestionKeys.delete(item.questionKey)
-    setMessage(`正解です。これでこの問題はクリアです。${item.explanation}`, { success: true })
-    void playCorrectSound()
-  } else {
-    currentStreak = 0
-    unresolvedQuestionKeys.add(item.questionKey)
-    setMessage(`不正解です。正解は「${item.answer}」です。この問題はあとでもう一度出ます。${item.explanation}`, { error: true })
-    void playIncorrectSound()
+  initialCorrectCount += 1
+  handleCorrectGameLogic()
+  setMessage(`正解です。${item.explanation}`, { success: true })
+  void playCorrectSound()
+ } else {
+  unresolvedQuestionKeys.add(item.questionKey)
+  initialMissedQuestionKeys.add(item.questionKey)
+  handleWrongGameLogic()
+  setMessage(`不正解です。正解は「${item.answer}」です。この問題はあとでもう一度出ます。${item.explanation}`, { error: true })
+  void playIncorrectSound()
   }
-
+  } else if (isCorrect) {
+  unresolvedQuestionKeys.delete(item.questionKey)
+  handleCorrectGameLogic()
+  setMessage(`正解です。これでこの問題はクリアです。${item.explanation}`, { success: true })
+  void playCorrectSound()
+} else {
+  unresolvedQuestionKeys.add(item.questionKey)
+  handleWrongGameLogic()
+  setMessage(`不正解です。正解は「${item.answer}」です。この問題はあとでもう一度出ます。${item.explanation}`, { error: true })
+  void playIncorrectSound()
+}
   updateProgress(true)
   nextBtn.disabled = false
   nextBtn.classList.remove("hidden")
