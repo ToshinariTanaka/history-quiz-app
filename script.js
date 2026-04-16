@@ -910,15 +910,6 @@ function handleWrongGameLogic() {
   updateGameStatus()
 }
 
-function renderStreakChip() {
-  if (currentStreak <= 0) {
-    return '<span class="progress-item">連続正解0</span>'
-  }
-
-  const fire = currentStreak >= 3 ? "🔥 " : ""
-  return `<span class="progress-item">${fire}連続正解${currentStreak}</span>`
-}
-
 function updateModeBadge() {
   if (reviewRound > 0) {
     const prefix = sessionMode === "review-missed" ? "❌だけ復習モード" : "❌だった問題の復習"
@@ -970,9 +961,7 @@ function updateProgress(answeredThisQuestion = false) {
 
     progressEl.innerHTML = `
       <span class="progress-item progress-primary">${questionNumber}/${selectedQuestions.length}問</span>
-      <span class="progress-item">${initialCorrectCount}/${answeredCount}正解</span>
       <span class="progress-item">${accuracy === null ? "正解率--" : `正解率${accuracy}％`}</span>
-      ${renderStreakChip()}
     `
     return
   }
@@ -982,7 +971,6 @@ function updateProgress(answeredThisQuestion = false) {
     <span class="progress-item progress-primary">復習${reviewRound}周目 ${reviewPosition}/${activeQuestions.length}問</span>
     <span class="progress-item">のこり${unresolvedQuestionKeys.size}問</span>
     <span class="progress-item">初回正解率${getInitialAccuracy()}％</span>
-    ${renderStreakChip()}
   `
 }
 
