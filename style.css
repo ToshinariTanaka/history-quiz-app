@@ -777,3 +777,20 @@ button:disabled {
 .score-effect.hidden {
   display: none;
 }
+
+@media (max-width: 420px) {
+  .game-status {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .status-chip {
+    min-height: 38px;
+    padding: 6px 10px;
+    font-size: 0.88rem;
+  }
+
+  #life-display {
+    letter-spacing: -0.04em;
+  }
+}
