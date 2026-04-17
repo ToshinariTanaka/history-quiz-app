@@ -16,7 +16,6 @@ const scoreEffectEl = document.getElementById("score-effect")
 
 const nextBtn = document.getElementById("next")
 const restartBtn = document.getElementById("restart")
-const reviewMissedBtn = document.getElementById("review-missed")
 const changeSettingsBtn = document.getElementById("change-settings")
 const eraEl = document.getElementById("era")
 const modeEl = document.getElementById("mode")
@@ -40,20 +39,16 @@ let activeQuestions = []
 let currentIndex = 0
 let initialCorrectCount = 0
 let initialWrongCount = 0
-let reviewRound = 0
 let answered = false
-let unresolvedQuestionKeys = new Set()
-let initialMissedQuestionKeys = new Set()
-let lastQuizMissedQuestions = []
 let currentStreak = 0
 let bestStreak = 0
 
 let score = 0
 let combo = 0
 let life = 3
+let isGameOver = false
 const MAX_LIFE = 5
 
-let sessionMode = "normal"
 let audioContext = null
 let questionStats = new Map()
 let learningProfile = createDefaultLearningProfile()
@@ -208,7 +203,6 @@ function createEmptyQuestionStat(item) {
     era: item.era || "",
     question: item.question,
     attempts: 0,
-    correctRound: null,
     firstAttemptCorrect: null
   }
 }
@@ -234,27 +228,16 @@ function recordQuestionAttempt(item, isCorrect) {
   if (stat.attempts === 1) {
     stat.firstAttemptCorrect = isCorrect
   }
-
-  if (isCorrect && stat.correctRound === null) {
-    stat.correctRound = reviewRound === 0 ? 1 : reviewRound + 1
-  }
 }
 
 function getHistoryItemsMarkup() {
   const stats = selectedQuestions
     .map((item) => ensureQuestionStat(item))
-    .sort((a, b) => {
-      if (a.correctRound === b.correctRound) {
-        return a.question.localeCompare(b.question, "ja")
-      }
-      return (a.correctRound || 999) - (b.correctRound || 999)
-    })
+    .sort((a, b) => a.question.localeCompare(b.question, "ja"))
 
   const itemsMarkup = stats.map((stat) => {
     const statusClass = stat.firstAttemptCorrect ? "history-status-good" : "history-status-review"
-    const statusText = stat.firstAttemptCorrect
-      ? "1回で正解"
-      : `${stat.correctRound || stat.attempts}回目で正解`
+    const statusText = stat.firstAttemptCorrect ? "初回正解" : "不正解"
 
     return `
       <li class="history-item">
@@ -619,17 +602,15 @@ function persistLearningData() {
     record.question = item.question
     record.totalSessionsSeen = (record.totalSessionsSeen || 0) + 1
     record.totalAttempts = (record.totalAttempts || 0) + stat.attempts
-    record.totalWrongAnswers = (record.totalWrongAnswers || 0) + Math.max(0, stat.attempts - 1)
+    record.totalWrongAnswers = (record.totalWrongAnswers || 0) + (stat.firstAttemptCorrect ? 0 : 1)
 
     if (stat.firstAttemptCorrect) {
       record.firstTryCorrectCount = (record.firstTryCorrectCount || 0) + 1
+      record.timesCleared = (record.timesCleared || 0) + 1
+      record.lastCorrectRound = 1
     } else {
       record.firstTryWrongCount = (record.firstTryWrongCount || 0) + 1
-    }
-
-    if (stat.correctRound !== null) {
-      record.timesCleared = (record.timesCleared || 0) + 1
-      record.lastCorrectRound = stat.correctRound
+      record.lastCorrectRound = null
     }
 
     record.lastPlayedAt = now
@@ -837,6 +818,10 @@ function clearProgress() {
   progressEl.innerHTML = ""
 }
 
+function getInitialLife(questionCount) {
+  return Math.max(2, Math.min(5, Math.floor(questionCount / 30) + 2))
+}
+
 function getLifeIcons() {
   return "❤️".repeat(Math.max(0, life))
 }
@@ -851,7 +836,7 @@ function updateGameStatus() {
   }
 
   if (lifeDisplayEl) {
-    lifeDisplayEl.textContent = `ライフ：${getLifeIcons()}`
+    lifeDisplayEl.textContent = life > 0 ? `ライフ：${getLifeIcons()}` : "ライフ：0"
   }
 }
 
@@ -874,6 +859,14 @@ function clearScoreEffect() {
 }
 
 function handleCorrectGameLogic() {
+  if (isGameOver || life <= 0) {
+    combo = 0
+    currentStreak = 0
+    showScoreEffect("正解！ ただしライフ切れ中のためスコア加算なし")
+    updateGameStatus()
+    return
+  }
+
   combo += 1
   currentStreak = combo
   bestStreak = Math.max(bestStreak, combo)
@@ -896,34 +889,29 @@ function handleCorrectGameLogic() {
 }
 
 function handleWrongGameLogic() {
-  life -= 1
+  combo = 0
   currentStreak = 0
 
-  if (life <= 0) {
-    combo = 0
-    life = 3
-    showScoreEffect("ライフ0！ コンボリセット！")
+  if (isGameOver || life <= 0) {
+    life = 0
+    showScoreEffect("ミス！ すでにライフ切れです")
+    updateGameStatus()
+    return
+  }
+
+  life = Math.max(0, life - 1)
+
+  if (life === 0) {
+    isGameOver = true
+    showScoreEffect("ライフ0！ 以後スコア加算なし")
   } else {
-    showScoreEffect(`ミス！ ライフ-${1}`)
+    showScoreEffect("ミス！ コンボリセット・ライフ-1")
   }
 
   updateGameStatus()
 }
 
 function updateModeBadge() {
-  if (reviewRound > 0) {
-    const prefix = sessionMode === "review-missed" ? "❌だけ復習モード" : "❌だった問題の復習"
-    modeEl.textContent = `${prefix}（${reviewRound}周目）`
-    modeEl.classList.remove("hidden")
-    return
-  }
-
-  if (sessionMode === "review-missed") {
-    modeEl.textContent = "❌だけ復習モード"
-    modeEl.classList.remove("hidden")
-    return
-  }
-
   const practiceMode = practiceModeEl.value || "normal"
   if (practiceMode !== "normal") {
     modeEl.textContent = getPracticeModeLabel(practiceMode)
@@ -949,28 +937,18 @@ function updateProgress(answeredThisQuestion = false) {
     return
   }
 
-  if (reviewRound === 0) {
-    const questionNumber = Math.min(currentIndex + 1, selectedQuestions.length)
-    const answeredCount = Math.min(
-      currentIndex + (answeredThisQuestion ? 1 : 0),
-      selectedQuestions.length
-    )
-    const accuracy = answeredCount === 0
-      ? null
-      : Math.round((initialCorrectCount / answeredCount) * 100)
+  const questionNumber = Math.min(currentIndex + 1, selectedQuestions.length)
+  const answeredCount = Math.min(
+    currentIndex + (answeredThisQuestion ? 1 : 0),
+    selectedQuestions.length
+  )
+  const accuracy = answeredCount === 0
+    ? null
+    : Math.round((initialCorrectCount / answeredCount) * 100)
 
-    progressEl.innerHTML = `
-      <span class="progress-item progress-primary">${questionNumber}/${selectedQuestions.length}問</span>
-      <span class="progress-item">${accuracy === null ? "正解率--" : `正解率${accuracy}％`}</span>
-    `
-    return
-  }
-
-  const reviewPosition = Math.min(currentIndex + 1, activeQuestions.length)
   progressEl.innerHTML = `
-    <span class="progress-item progress-primary">復習${reviewRound}周目 ${reviewPosition}/${activeQuestions.length}問</span>
-    <span class="progress-item">のこり${unresolvedQuestionKeys.size}問</span>
-    <span class="progress-item">初回正解率${getInitialAccuracy()}％</span>
+    <span class="progress-item progress-primary">${questionNumber}/${selectedQuestions.length}問</span>
+    <span class="progress-item">${accuracy === null ? "正解率--" : `正解率${accuracy}％`}</span>
   `
 }
 
@@ -996,11 +974,10 @@ function renderQuestion() {
 
   clearScoreEffect()
   updateGameStatus()
-  
+
   nextBtn.disabled = true
   nextBtn.classList.add("hidden")
   restartBtn.classList.add("hidden")
-  reviewMissedBtn.classList.add("hidden")
   changeSettingsBtn.classList.add("hidden")
   updateProgress(false)
 
@@ -1039,74 +1016,53 @@ function selectChoice(selectedChoice) {
 
   recordQuestionAttempt(item, isCorrect)
 
-  if (reviewRound === 0) {
-    if (isCorrect) {
-  initialCorrectCount += 1
-  handleCorrectGameLogic()
-  setMessage(`正解です。${item.explanation}`, { success: true })
-  void playCorrectSound()
- } else {
-  unresolvedQuestionKeys.add(item.questionKey)
-  initialMissedQuestionKeys.add(item.questionKey)
-  handleWrongGameLogic()
-  setMessage(`不正解です。正解は「${item.answer}」です。この問題はあとでもう一度出ます。${item.explanation}`, { error: true })
-  void playIncorrectSound()
+  if (isCorrect) {
+    initialCorrectCount += 1
+    handleCorrectGameLogic()
+    setMessage(`正解です。${item.explanation}`, { success: true })
+    void playCorrectSound()
+  } else {
+    handleWrongGameLogic()
+    setMessage(`不正解です。正解は「${item.answer}」です。${item.explanation}`, { error: true })
+    void playIncorrectSound()
   }
-  } else if (isCorrect) {
-  unresolvedQuestionKeys.delete(item.questionKey)
-  handleCorrectGameLogic()
-  setMessage(`正解です。これでこの問題はクリアです。${item.explanation}`, { success: true })
-  void playCorrectSound()
-} else {
-  unresolvedQuestionKeys.add(item.questionKey)
-  handleWrongGameLogic()
-  setMessage(`不正解です。正解は「${item.answer}」です。この問題はあとでもう一度出ます。${item.explanation}`, { error: true })
-  void playIncorrectSound()
-}
+
   updateProgress(true)
   nextBtn.disabled = false
   nextBtn.classList.remove("hidden")
   scrollElementIntoView(nextBtn)
 }
 
-function beginReviewRound() {
-  reviewRound += 1
-  const remainingQuestions = selectedQuestions.filter((item) => unresolvedQuestionKeys.has(item.questionKey))
-  activeQuestions = shuffle(remainingQuestions).map(createRuntimeQuestion)
-  currentIndex = 0
-  renderQuestion()
-}
-
-function getRankLabel(accuracy) {
-  if (accuracy === 100) {
+function getRankLabel(accuracy, depleted) {
+  if (!depleted && accuracy >= 95) {
     return "S"
   }
-  if (accuracy >= 80) {
+  if (!depleted && accuracy >= 80) {
     return "A"
   }
-  if (accuracy >= 60) {
+  if (accuracy >= 70) {
     return "B"
   }
-  if (accuracy >= 40) {
+  if (accuracy >= 50) {
     return "C"
   }
   return "D"
 }
 
-function getEvaluationComment(accuracy) {
-  if (accuracy === 100) {
-    return "完璧です！"
+function getEvaluationComment(accuracy, depleted) {
+  if (!depleted && accuracy >= 95) {
+    return "完璧です。素晴らしい完走でした。"
   }
-  if (accuracy >= 80) {
-    return "とてもよくできました！"
+  if (!depleted && accuracy >= 80) {
+    return "とても良い結果です。"
   }
-  if (accuracy >= 60) {
-    return "あと少しで高得点です！"
+  if (accuracy >= 70) {
+    return "安定しています。あと少しで上位です。"
   }
-  if (accuracy >= 40) {
-    return "復習するとさらに伸びます！"
+  if (accuracy >= 50) {
+    return "復習するとさらに伸びます。"
   }
-  return "もう一度挑戦して覚えよう！"
+  return "基礎の定着を進めましょう。"
 }
 
 function getEraComment() {
@@ -1115,41 +1071,22 @@ function getEraComment() {
     return ""
   }
   if (eras.length === 1) {
-    return `${eras[0]}時代の重要事項を復習できました。`
+    return `${eras[0]}時代の重要事項を確認しました。`
   }
-  return `${eras[0]}から${eras[eras.length - 1]}までを復習できました。`
-}
-
-function buildCelebrationBlock(isPerfectFirstTry) {
-  const title = isPerfectFirstTry ? "💮 一発で全問クリア！ 💮" : "💮 ぜんぶクリア！ 💮"
-  const sub = isPerfectFirstTry ? "すばらしいです。まちがいゼロでした。" : "❌だった問題も最後まで解き切りました。"
-  return `
-    <div class="summary-celebration" role="status" aria-live="polite">
-      <div class="celebration-stamp">${title}</div>
-      <div class="celebration-sub">${sub}</div>
-      <div class="celebration-confetti" aria-hidden="true">🌸 ✨ 🌸 ✨ 🌸</div>
-    </div>
-  `
+  return `${eras[0]}から${eras[eras.length - 1]}までを確認しました。`
 }
 
 function showFinalScore() {
   const totalQuestions = selectedQuestions.length
   const accuracy = getInitialAccuracy()
-  const rank = getRankLabel(accuracy)
-  const comment = getEvaluationComment(accuracy)
-  const wrongCountLabel = `${initialWrongCount}問`
-  const reviewRoundsLabel = initialWrongCount === 0 ? "なし" : `${reviewRound}周`
-  const masteryComment = initialWrongCount === 0
-    ? "全問一発クリアです。"
-    : "❌だった問題もすべてクリアしました。"
-  const missedQuestions = selectedQuestions.filter((item) => initialMissedQuestionKeys.has(item.questionKey))
-  const celebrationHtml = buildCelebrationBlock(initialWrongCount === 0)
-
-  lastQuizMissedQuestions = missedQuestions.map(cloneQuestion)
-  persistLearningData()
-
+  const missedCount = totalQuestions - initialCorrectCount
+  const depleted = isGameOver || life <= 0
+  const rank = getRankLabel(accuracy, depleted)
+  const comment = getEvaluationComment(accuracy, depleted)
   const cumulativeWeakCount = countWeakQuestions(allQuestions)
   const historyMarkup = getHistoryItemsMarkup()
+
+  persistLearningData()
 
   modeEl.classList.add("hidden")
   eraEl.classList.add("hidden")
@@ -1159,33 +1096,36 @@ function showFinalScore() {
   clearProgress()
 
   summaryEl.innerHTML = `
-    ${celebrationHtml}
     <p class="summary-heading">総合結果</p>
     <p class="summary-score">${totalQuestions}問中 ${initialCorrectCount}問正解！</p>
-    <p class="summary-subscore">初回正解率 ${accuracy}％</p>
+    <p class="summary-subscore">正答率 ${accuracy}％</p>
     <div class="summary-meta">
+      <div class="summary-item">
+        <span class="summary-label">最終スコア</span>
+        <span class="summary-value">${score}</span>
+      </div>
       <div class="summary-item">
         <span class="summary-label">ランク</span>
         <span class="summary-value">${rank}</span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">まちがえた問題</span>
-        <span class="summary-value">${wrongCountLabel}</span>
+        <span class="summary-label">ミス数</span>
+        <span class="summary-value">${missedCount}問</span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">復習周回</span>
-        <span class="summary-value">${reviewRoundsLabel}</span>
-      </div>
-      <div class="summary-item">
-        <span class="summary-label">最高連続正解</span>
+        <span class="summary-label">最高コンボ</span>
         <span class="summary-value">${bestStreak}問</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">ライフ切れ</span>
+        <span class="summary-value">${depleted ? "あり" : "なし"}</span>
       </div>
       <div class="summary-item">
         <span class="summary-label">累計苦手問題</span>
         <span class="summary-value">${cumulativeWeakCount}問</span>
       </div>
     </div>
-    <p class="summary-comment">${comment}<br>${masteryComment}${getEraComment() ? `<br>${getEraComment()}` : ""}</p>
+    <p class="summary-comment">${comment}${getEraComment() ? `<br>${getEraComment()}` : ""}</p>
     ${historyMarkup}
   `
   summaryEl.classList.remove("hidden")
@@ -1193,7 +1133,6 @@ function showFinalScore() {
   nextBtn.classList.add("hidden")
   restartBtn.classList.remove("hidden")
   changeSettingsBtn.classList.remove("hidden")
-  reviewMissedBtn.classList.toggle("hidden", !(sessionMode === "normal" && lastQuizMissedQuestions.length > 0))
   scrollElementIntoView(summaryEl)
 }
 
@@ -1205,15 +1144,7 @@ function advanceQuiz() {
     return
   }
 
-  if (reviewRound === 0) {
-    initialWrongCount = unresolvedQuestionKeys.size
-  }
-
-  if (unresolvedQuestionKeys.size > 0) {
-    beginReviewRound()
-    return
-  }
-
+  initialWrongCount = selectedQuestions.length - initialCorrectCount
   showFinalScore()
 }
 
@@ -1221,16 +1152,14 @@ function resetQuizState() {
   currentIndex = 0
   initialCorrectCount = 0
   initialWrongCount = 0
-  reviewRound = 0
   answered = false
-  unresolvedQuestionKeys = new Set()
-  initialMissedQuestionKeys = new Set()
   currentStreak = 0
   bestStreak = 0
 
   score = 0
   combo = 0
-  life = 3
+  life = getInitialLife(selectedQuestions.length)
+  isGameOver = false
 
   clearSummary()
   clearScoreEffect()
@@ -1244,7 +1173,6 @@ function startQuiz(options = {}) {
     return
   }
 
-  sessionMode = "normal"
   selectedQuestions = buildQuizFromSettings()
 
   if (selectedQuestions.length === 0) {
@@ -1261,33 +1189,18 @@ function startQuiz(options = {}) {
     setMessage(message, { error: true })
     nextBtn.classList.add("hidden")
     restartBtn.classList.add("hidden")
-    reviewMissedBtn.classList.add("hidden")
     changeSettingsBtn.classList.remove("hidden")
     return
   }
 
   resetQuestionStats(selectedQuestions)
   activeQuestions = selectedQuestions.map(createRuntimeQuestion)
-  lastQuizMissedQuestions = []
   resetQuizState()
   renderQuestion()
 
   if (scrollToQuestion) {
     scrollToFirstQuestionWithBounce()
   }
-}
-
-function startMissedReviewQuiz() {
-  if (lastQuizMissedQuestions.length === 0) {
-    return
-  }
-
-  sessionMode = "review-missed"
-  selectedQuestions = lastQuizMissedQuestions.map(cloneQuestion)
-  resetQuestionStats(selectedQuestions)
-  activeQuestions = selectedQuestions.map(createRuntimeQuestion)
-  resetQuizState()
-  renderQuestion()
 }
 
 async function loadQuiz() {
@@ -1301,7 +1214,6 @@ async function loadQuiz() {
     clearProgress()
     nextBtn.classList.add("hidden")
     restartBtn.classList.add("hidden")
-    reviewMissedBtn.classList.add("hidden")
     changeSettingsBtn.classList.add("hidden")
     questionCountEl.disabled = true
     randomModeEl.disabled = true
@@ -1340,7 +1252,6 @@ async function loadQuiz() {
     clearProgress()
     nextBtn.classList.add("hidden")
     restartBtn.classList.add("hidden")
-    reviewMissedBtn.classList.add("hidden")
     changeSettingsBtn.classList.add("hidden")
     questionCountEl.innerHTML = ""
     questionCountEl.disabled = true
@@ -1363,10 +1274,6 @@ nextBtn.addEventListener("click", () => {
 
 restartBtn.addEventListener("click", () => {
   startQuiz()
-})
-
-reviewMissedBtn.addEventListener("click", () => {
-  startMissedReviewQuiz()
 })
 
 changeSettingsBtn.addEventListener("click", () => {
